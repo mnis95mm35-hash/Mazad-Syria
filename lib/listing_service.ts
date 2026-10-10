@@ -24,6 +24,8 @@ export type NewListingInput = {
   sellerPhone: string | null;
 };
 
+// التخزين الحالي: ملف JSON محلي. سيُستبدل بقاعدة بيانات خارجية (Supabase)
+// دون تغيير بقية الكود، لأن كل الصفحات تتعامل مع listingService فقط.
 const FILE_PATH = path.join(process.cwd(), 'data', 'listings.json');
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -33,19 +35,6 @@ function normalize(l: Listing): Listing {
   const until = l.featuredUntil ? new Date(l.featuredUntil as unknown as string | Date) : null;
   const isFeatured = Boolean(l.isFeatured) && (!until || until.getTime() > Date.now());
   return { ...l, images, imageUrl: images[0] ?? null, isFeatured, featuredUntil: until };
-}
-
-// صفوف قاعدة البيانات تخزّن الصور كنص JSON
-function fromDbRow(row: unknown): Listing {
-  const r = row as Omit<Listing, 'images'> & { images?: string | null };
-  let images: string[] = [];
-  try {
-    const parsed = JSON.parse(r.images ?? '[]');
-    if (Array.isArray(parsed)) images = parsed.filter((x): x is string => typeof x === 'string');
-  } catch {
-    images = [];
-  }
-  return normalize({ ...r, images });
 }
 
 function applyFilters(items: Listing[], f: ListingFilters) {
@@ -76,113 +65,68 @@ function sortListings(items: Listing[], sort: SortKey = 'newest') {
   });
 }
 
-// تحميل Prisma عند الحاجة فقط، حتى لا يتعطل الموقع إن لم يكن العميل مولَّداً بعد
-async function getPrisma() {
-  const mod = await import('@/lib/prisma');
-  return mod.prisma;
-}
-
-// ملف محلي احتياطي: يُستخدم عندما تكون قاعدة البيانات غير جاهزة
-async function readFileStore(): Promise<Listing[]> {
+async function readStore(): Promise<Listing[]> {
   try {
     const raw = await fs.readFile(FILE_PATH, 'utf8');
     const rows = JSON.parse(raw) as Listing[];
     return rows.map((r) => normalize({ ...r, createdAt: new Date(r.createdAt) }));
   } catch {
+    // لا يوجد ملف بعد: نبدأ بالإعلانات التجريبية
     return SAMPLE_LISTINGS.map(normalize);
   }
 }
 
-async function writeFileStore(items: Listing[]) {
+async function writeStore(items: Listing[]) {
   await fs.mkdir(path.dirname(FILE_PATH), { recursive: true });
   await fs.writeFile(FILE_PATH, JSON.stringify(items, null, 2), 'utf8');
 }
 
-async function loadAll(): Promise<Listing[]> {
-  try {
-    const prisma = await getPrisma();
-    const rows = await prisma.listing.findMany({ orderBy: { createdAt: 'desc' } });
-    if (rows.length > 0) return rows.map(fromDbRow);
-  } catch {
-    // قاعدة البيانات غير جاهزة: ننتقل للملف المحلي
-  }
-  return readFileStore();
+async function getListings(filters: ListingFilters = {}): Promise<Listing[]> {
+  return sortListings(applyFilters(await readStore(), filters), filters.sort);
 }
 
 async function getListing(id: number): Promise<Listing | null> {
-  try {
-    const prisma = await getPrisma();
-    const row = await prisma.listing.findUnique({ where: { id } });
-    if (row) return fromDbRow(row);
-  } catch {
-    // ننتقل للملف المحلي
-  }
-  const items = await readFileStore();
+  const items = await readStore();
   return items.find((l) => l.id === id) ?? null;
-}
-
-async function getListings(filters: ListingFilters = {}): Promise<Listing[]> {
-  return sortListings(applyFilters(await loadAll(), filters), filters.sort);
 }
 
 // للوحة الإدارة: كل الإعلانات من الأحدث
 async function getAllListings(): Promise<Listing[]> {
-  return [...(await loadAll())].sort(byDateDesc);
+  return [...(await readStore())].sort(byDateDesc);
 }
 
 async function createListing(input: NewListingInput): Promise<number> {
-  const cover = input.images[0] ?? null;
-  try {
-    const prisma = await getPrisma();
-    const row = await prisma.listing.create({
-      data: { ...input, imageUrl: cover, images: JSON.stringify(input.images) },
-    });
-    return row.id;
-  } catch {
-    // قاعدة البيانات غير جاهزة: نحفظ في الملف المحلي
-  }
-  const items = await readFileStore();
+  const items = await readStore();
   const id = items.reduce((m, l) => Math.max(m, l.id), 0) + 1;
-  items.push({ id, ...input, imageUrl: cover, isFeatured: false, featuredUntil: null, createdAt: new Date() });
-  await writeFileStore(items);
+  items.push({
+    id,
+    ...input,
+    imageUrl: input.images[0] ?? null,
+    isFeatured: false,
+    featuredUntil: null,
+    createdAt: new Date(),
+  });
+  await writeStore(items);
   return id;
 }
 
 // days = null يعني إلغاء التمييز
 async function setFeatured(id: number, days: number | null): Promise<void> {
-  const until = days === null ? null : new Date(Date.now() + days * DAY_MS);
-  try {
-    const prisma = await getPrisma();
-    await prisma.listing.update({
-      where: { id },
-      data: { isFeatured: days !== null, featuredUntil: until },
-    });
-    return;
-  } catch {
-    // السجل غير موجود في القاعدة أو القاعدة غير جاهزة: نستخدم الملف المحلي
-  }
-  const items = await readFileStore();
+  const items = await readStore();
   const target = items.find((l) => l.id === id);
   if (!target) return;
   target.isFeatured = days !== null;
-  target.featuredUntil = until;
-  await writeFileStore(items);
+  target.featuredUntil = days === null ? null : new Date(Date.now() + days * DAY_MS);
+  await writeStore(items);
 }
 
 // يعيد قائمة صور الإعلان المحذوف ليحذفها المستدعي من القرص
 async function deleteListing(id: number): Promise<string[]> {
-  const existing = await getListing(id);
-  const images = existing?.images ?? [];
-  try {
-    const prisma = await getPrisma();
-    await prisma.listing.delete({ where: { id } });
-    return images;
-  } catch {
-    // ننتقل للملف المحلي
-  }
-  const items = await readFileStore();
-  await writeFileStore(items.filter((l) => l.id !== id));
-  return images;
+  const items = await readStore();
+  const existing = items.find((l) => l.id === id);
+  if (!existing) return [];
+  await writeStore(items.filter((l) => l.id !== id));
+  return existing.images ?? [];
 }
 
 export const listingService = {
