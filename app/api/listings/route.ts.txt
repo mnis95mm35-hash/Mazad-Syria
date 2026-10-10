@@ -1,0 +1,27 @@
+import { NextResponse } from 'next/server';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const category = searchParams.get('category');
+  const featured = searchParams.get('featured');
+
+  let adsQuery = query(collection(db, 'ads'), orderBy('createdAt', 'desc'));
+
+  if (category) {
+    adsQuery = query(collection(db, 'ads'), where('category', '==', category), orderBy('createdAt', 'desc'));
+  }
+
+  if (featured === 'true') {
+    adsQuery = query(collection(db, 'ads'), where('isFeatured', '==', true), orderBy('createdAt', 'desc'));
+  }
+
+  try {
+    const snapshot = await getDocs(adsQuery);
+    const ads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return NextResponse.json(ads);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to fetch ads' }, { status: 500 });
+  }
+}

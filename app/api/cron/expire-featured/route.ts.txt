@@ -1,0 +1,13 @@
+import { NextResponse } from 'next/server';
+
+export async function POST(request: Request) {
+
+// هنا يمكنك إضافة المنطق الخاص بانتهاء
+
+صلاحية الإعلانات المميزة
+
+return
+
+NextResponse.json({ success: true, message: 'Featured ads expired' });
+
+}

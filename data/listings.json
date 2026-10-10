@@ -1,0 +1,126 @@
+[
+  {
+    "id": 3,
+    "title": "آيفون 13 برو 256GB",
+    "description": "مستعمل بحالة الوكالة مع العلبة والشاحن، بطارية 91%.",
+    "price": 650,
+    "category": "electronics",
+    "city": "حلب",
+    "imageUrl": null,
+    "sellerName": "سامر",
+    "sellerPhone": "0900000003",
+    "createdAt": "2026-10-08T22:04:13.614Z",
+    "images": []
+  },
+  {
+    "id": 1,
+    "title": "هيونداي إلنترا 2018 بحالة ممتازة",
+    "description": "سيارة نظيفة جداً، صيانة دورية، فل أوبشن، ممشى 80 ألف كم.",
+    "price": 14500,
+    "category": "cars",
+    "city": "دمشق",
+    "imageUrl": null,
+    "sellerName": "أحمد",
+    "sellerPhone": "0900000001",
+    "createdAt": "2026-10-07T22:04:13.614Z",
+    "images": []
+  },
+  {
+    "id": 2,
+    "title": "شقة 120 متر في المزة للبيع",
+    "description": "طابق ثالث، إطلالة مفتوحة، اكساء ديلوكس، قريبة من الخدمات.",
+    "price": 85000,
+    "category": "real-estate",
+    "city": "دمشق",
+    "imageUrl": null,
+    "sellerName": "مكتب الأمان",
+    "sellerPhone": "0900000002",
+    "createdAt": "2026-10-06T22:04:13.614Z",
+    "images": []
+  },
+  {
+    "id": 5,
+    "title": "مطلوب محاسب بدوام كامل",
+    "description": "خبرة سنتين على الأقل، إتقان إكسل، الراتب حسب الخبرة.",
+    "price": 300,
+    "category": "jobs",
+    "city": "اللاذقية",
+    "imageUrl": null,
+    "sellerName": "شركة النور",
+    "sellerPhone": "0900000005",
+    "createdAt": "2026-10-05T22:04:13.614Z",
+    "images": []
+  },
+  {
+    "id": 4,
+    "title": "غرفة نوم كاملة خشب زان",
+    "description": "سرير مع خزانة وكومودينات، حالة جيدة جداً.",
+    "price": 900,
+    "category": "furniture",
+    "city": "حمص",
+    "imageUrl": null,
+    "sellerName": "ليلى",
+    "sellerPhone": "0900000004",
+    "createdAt": "2026-10-04T22:04:13.614Z",
+    "images": []
+  },
+  {
+    "id": 6,
+    "title": "خدمات صيانة وتركيب مكيفات",
+    "description": "صيانة وتعبئة غاز وتركيب، خدمة سريعة في جميع المناطق.",
+    "price": 20,
+    "category": "services",
+    "city": "حماة",
+    "imageUrl": null,
+    "sellerName": "ورشة الأمين",
+    "sellerPhone": "0900000006",
+    "createdAt": "2026-10-03T22:04:13.614Z",
+    "images": []
+  },
+  {
+    "id": 7,
+    "title": "ابلابعا",
+    "description": "ثيلبيبيافاير",
+    "price": 5000,
+    "category": "cars",
+    "city": "حلب",
+    "sellerName": "لىلابللا",
+    "sellerPhone": "0988781537",
+    "imageUrl": null,
+    "createdAt": "2026-10-08T22:26:32.762Z",
+    "images": []
+  },
+  {
+    "id": 8,
+    "title": "gdgege",
+    "description": "bffgdfsf",
+    "price": 600,
+    "category": "electronics",
+    "city": "طرطوس",
+    "imageUrl": "/uploads/c06f7629-a7d5-45c1-88f6-f0405708b6c1.jpg",
+    "sellerName": "gjtrgsfs",
+    "sellerPhone": "0988781537",
+    "isFeatured": false,
+    "createdAt": "2026-10-08T23:18:54.534Z",
+    "images": [
+      "/uploads/c06f7629-a7d5-45c1-88f6-f0405708b6c1.jpg"
+    ]
+  },
+  {
+    "id": 9,
+    "title": "jhgyglk;l",
+    "description": null,
+    "price": 786,
+    "category": "furniture",
+    "city": "حماة",
+    "images": [
+      "/uploads/2b8699a6-2725-4ffe-a96d-79fa799e5594.jpg",
+      "/uploads/98e82fdb-963b-4ae0-bdb1-bc48d4d49a20.png"
+    ],
+    "sellerName": "gjtrgsfs",
+    "sellerPhone": "0988781537",
+    "imageUrl": "/uploads/2b8699a6-2725-4ffe-a96d-79fa799e5594.jpg",
+    "isFeatured": false,
+    "createdAt": "2026-10-08T23:37:47.864Z"
+  }
+]

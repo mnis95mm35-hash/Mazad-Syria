@@ -1,0 +1,13 @@
+import AdminDashboard from "@/components/admin/admin_dashboard";
+import MainLayout from "@/components/layout/main_layout";
+
+export default function AdminPage() {
+  return (
+    <MainLayout>
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-6">لوحة تحكم الإدارة</h1>
+        <AdminDashboard />
+      </div>
+    </MainLayout>
+  );
+}

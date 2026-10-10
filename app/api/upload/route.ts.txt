@@ -1,0 +1,18 @@
+import { NextResponse } from 'next/server';
+
+export async function POST(request: Request) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file') as File | null;
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    }
+
+    // هنا يمكنك إضافة منطق رفع الملفات إلى Firebase Storage أو أي خدمة تخزين أخرى
+    
+    return NextResponse.json({ success: true, message: 'File uploaded successfully' });
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
