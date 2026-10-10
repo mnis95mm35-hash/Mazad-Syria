@@ -1,6 +1,5 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-import { SAMPLE_LISTINGS, type Listing } from '@/lib/sample_data';
+import { supabaseAdmin } from '@/lib/supabase';
+import type { Listing } from '@/lib/sample_data';
 
 export type SortKey = 'newest' | 'price_asc' | 'price_desc';
 
@@ -24,29 +23,43 @@ export type NewListingInput = {
   sellerPhone: string | null;
 };
 
-// التخزين الحالي: ملف JSON محلي. سيُستبدل بقاعدة بيانات خارجية (Supabase)
-// دون تغيير بقية الكود، لأن كل الصفحات تتعامل مع listingService فقط.
-const FILE_PATH = path.join(process.cwd(), 'data', 'listings.json');
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// نوحّد شكل الإعلان: الصور، وانتهاء التمييز تلقائياً
-function normalize(l: Listing): Listing {
-  const images = l.images && l.images.length > 0 ? l.images : l.imageUrl ? [l.imageUrl] : [];
-  const until = l.featuredUntil ? new Date(l.featuredUntil as unknown as string | Date) : null;
-  const isFeatured = Boolean(l.isFeatured) && (!until || until.getTime() > Date.now());
-  return { ...l, images, imageUrl: images[0] ?? null, isFeatured, featuredUntil: until };
-}
+type Row = {
+  id: number;
+  title: string;
+  description: string | null;
+  price: number | string;
+  category: string;
+  city: string;
+  images: string[] | null;
+  seller_name: string;
+  seller_phone: string | null;
+  is_featured: boolean;
+  featured_until: string | null;
+  created_at: string;
+};
 
-function applyFilters(items: Listing[], f: ListingFilters) {
-  const q = f.q?.trim().toLowerCase();
-  return items.filter(
-    (l) =>
-      (!q || l.title.toLowerCase().includes(q) || (l.description ?? '').toLowerCase().includes(q)) &&
-      (!f.category || l.category === f.category) &&
-      (!f.city || l.city === f.city) &&
-      (f.minPrice === undefined || l.price >= f.minPrice) &&
-      (f.maxPrice === undefined || l.price <= f.maxPrice),
-  );
+// تحويل صف قاعدة البيانات إلى نوع Listing، مع انتهاء التمييز تلقائياً
+function fromRow(r: Row): Listing {
+  const images = r.images ?? [];
+  const until = r.featured_until ? new Date(r.featured_until) : null;
+  const isFeatured = r.is_featured && (!until || until.getTime() > Date.now());
+  return {
+    id: r.id,
+    title: r.title,
+    description: r.description,
+    price: Number(r.price),
+    category: r.category,
+    city: r.city,
+    images,
+    imageUrl: images[0] ?? null,
+    sellerName: r.seller_name,
+    sellerPhone: r.seller_phone,
+    isFeatured,
+    featuredUntil: until,
+    createdAt: new Date(r.created_at),
+  };
 }
 
 function byDateDesc(a: Listing, b: Listing) {
@@ -65,68 +78,78 @@ function sortListings(items: Listing[], sort: SortKey = 'newest') {
   });
 }
 
-async function readStore(): Promise<Listing[]> {
-  try {
-    const raw = await fs.readFile(FILE_PATH, 'utf8');
-    const rows = JSON.parse(raw) as Listing[];
-    return rows.map((r) => normalize({ ...r, createdAt: new Date(r.createdAt) }));
-  } catch {
-    // لا يوجد ملف بعد: نبدأ بالإعلانات التجريبية
-    return SAMPLE_LISTINGS.map(normalize);
-  }
-}
-
-async function writeStore(items: Listing[]) {
-  await fs.mkdir(path.dirname(FILE_PATH), { recursive: true });
-  await fs.writeFile(FILE_PATH, JSON.stringify(items, null, 2), 'utf8');
+// نهرّب الأحرف الخاصة بصيغة PostgREST حتى لا يعبث نص البحث بالاستعلام
+function escapeSearch(q: string) {
+  return q.replace(/[%_,()*\\]/g, ' ').trim();
 }
 
 async function getListings(filters: ListingFilters = {}): Promise<Listing[]> {
-  return sortListings(applyFilters(await readStore(), filters), filters.sort);
+  let query = supabaseAdmin().from('listings').select('*');
+  if (filters.category) query = query.eq('category', filters.category);
+  if (filters.city) query = query.eq('city', filters.city);
+  if (filters.minPrice !== undefined) query = query.gte('price', filters.minPrice);
+  if (filters.maxPrice !== undefined) query = query.lte('price', filters.maxPrice);
+  const q = filters.q ? escapeSearch(filters.q) : '';
+  if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
+
+  const { data, error } = await query.order('created_at', { ascending: false }).limit(500);
+  if (error) throw new Error(`تعذّر جلب الإعلانات: ${error.message}`);
+  return sortListings((data as Row[]).map(fromRow), filters.sort);
 }
 
 async function getListing(id: number): Promise<Listing | null> {
-  const items = await readStore();
-  return items.find((l) => l.id === id) ?? null;
+  const { data, error } = await supabaseAdmin().from('listings').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(`تعذّر جلب الإعلان: ${error.message}`);
+  return data ? fromRow(data as Row) : null;
 }
 
 // للوحة الإدارة: كل الإعلانات من الأحدث
 async function getAllListings(): Promise<Listing[]> {
-  return [...(await readStore())].sort(byDateDesc);
+  const { data, error } = await supabaseAdmin()
+    .from('listings')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(1000);
+  if (error) throw new Error(`تعذّر جلب الإعلانات: ${error.message}`);
+  return (data as Row[]).map(fromRow);
 }
 
 async function createListing(input: NewListingInput): Promise<number> {
-  const items = await readStore();
-  const id = items.reduce((m, l) => Math.max(m, l.id), 0) + 1;
-  items.push({
-    id,
-    ...input,
-    imageUrl: input.images[0] ?? null,
-    isFeatured: false,
-    featuredUntil: null,
-    createdAt: new Date(),
-  });
-  await writeStore(items);
-  return id;
+  const { data, error } = await supabaseAdmin()
+    .from('listings')
+    .insert({
+      title: input.title,
+      description: input.description,
+      price: input.price,
+      category: input.category,
+      city: input.city,
+      images: input.images,
+      seller_name: input.sellerName,
+      seller_phone: input.sellerPhone,
+    })
+    .select('id')
+    .single();
+  if (error) throw new Error(`تعذّر حفظ الإعلان: ${error.message}`);
+  return data.id as number;
 }
 
 // days = null يعني إلغاء التمييز
 async function setFeatured(id: number, days: number | null): Promise<void> {
-  const items = await readStore();
-  const target = items.find((l) => l.id === id);
-  if (!target) return;
-  target.isFeatured = days !== null;
-  target.featuredUntil = days === null ? null : new Date(Date.now() + days * DAY_MS);
-  await writeStore(items);
+  const { error } = await supabaseAdmin()
+    .from('listings')
+    .update({
+      is_featured: days !== null,
+      featured_until: days === null ? null : new Date(Date.now() + days * DAY_MS).toISOString(),
+    })
+    .eq('id', id);
+  if (error) throw new Error(`تعذّر تحديث التمييز: ${error.message}`);
 }
 
-// يعيد قائمة صور الإعلان المحذوف ليحذفها المستدعي من القرص
+// يعيد قائمة صور الإعلان المحذوف ليحذفها المستدعي من التخزين
 async function deleteListing(id: number): Promise<string[]> {
-  const items = await readStore();
-  const existing = items.find((l) => l.id === id);
-  if (!existing) return [];
-  await writeStore(items.filter((l) => l.id !== id));
-  return existing.images ?? [];
+  const { data, error } = await supabaseAdmin().from('listings').delete().eq('id', id).select('images');
+  if (error) throw new Error(`تعذّر حذف الإعلان: ${error.message}`);
+  return (data?.[0]?.images as string[] | undefined) ?? [];
 }
 
 export const listingService = {

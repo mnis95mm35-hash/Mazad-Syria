@@ -1,16 +1,14 @@
 'use server';
 
-import { promises as fs } from 'fs';
-import path from 'path';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { listingService } from '@/lib/listing_service';
+import { IMAGE_BUCKET, imagePathFromUrl, supabaseAdmin } from '@/lib/supabase';
 import { adminConfigured, checkPassword, endSession, isAdmin, startSession } from '@/lib/admin_auth';
 
 export type LoginState = { error?: string };
 
 const ALLOWED_DAYS = [7, 30, 90];
-const IMAGE_URL_RE = /^\/uploads\/[0-9a-f-]{36}\.(jpg|png|webp)$/;
 
 // كل إجراء إداري يتحقق من الجلسة بنفسه، ولا يعتمد على إخفاء الصفحة فقط
 async function requireAdmin() {
@@ -58,12 +56,9 @@ export async function deleteListingAction(formData: FormData): Promise<void> {
   const id = Number(formData.get('id'));
   if (!Number.isInteger(id)) return;
   const images = await listingService.deleteListing(id);
-  for (const url of images) {
-    // نحذف فقط الملفات التي تطابق نمط ملفاتنا المرفوعة
-    if (IMAGE_URL_RE.test(url)) {
-      await fs.unlink(path.join(process.cwd(), 'public', url)).catch(() => {});
-    }
-  }
+  // نحذف فقط الملفات التي تطابق نمط ملفاتنا في حاويتنا
+  const paths = images.map(imagePathFromUrl).filter((p): p is string => p !== null);
+  if (paths.length) await supabaseAdmin().storage.from(IMAGE_BUCKET).remove(paths);
   revalidatePath('/');
   revalidatePath('/admin');
 }

@@ -1,12 +1,11 @@
 'use server';
 
-import { promises as fs } from 'fs';
-import path from 'path';
 import { randomUUID } from 'crypto';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { listingService } from '@/lib/listing_service';
 import { CATEGORIES, CITIES } from '@/lib/sample_data';
+import { IMAGE_BUCKET, publicImageUrl, supabaseAdmin } from '@/lib/supabase';
 
 export type FormState = { error?: string };
 
@@ -58,13 +57,22 @@ export async function createListingAction(_prev: FormState, formData: FormData):
     prepared.push(p);
   }
 
-  const dir = path.join(process.cwd(), 'public', 'uploads');
-  await fs.mkdir(dir, { recursive: true });
+  const storage = supabaseAdmin().storage.from(IMAGE_BUCKET);
   const images: string[] = [];
+  const uploaded: string[] = [];
   for (const p of prepared) {
     const name = `${randomUUID()}.${p.ext}`;
-    await fs.writeFile(path.join(dir, name), p.buf);
-    images.push(`/uploads/${name}`);
+    const { error } = await storage.upload(name, p.buf, {
+      contentType: p.ext === 'jpg' ? 'image/jpeg' : `image/${p.ext}`,
+      cacheControl: '31536000',
+    });
+    if (error) {
+      // ننظّف ما رُفع سابقاً حتى لا تبقى ملفات يتيمة
+      if (uploaded.length) await storage.remove(uploaded);
+      return { error: 'تعذّر رفع الصور، حاول مرة أخرى.' };
+    }
+    uploaded.push(name);
+    images.push(publicImageUrl(name));
   }
 
   const id = await listingService.createListing({
