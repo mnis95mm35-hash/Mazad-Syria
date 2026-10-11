@@ -15,6 +15,14 @@ export default function NewListingForm() {
         <p className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">{state.error}</p>
       )}
 
+      {/* فخ للروبوتات: مخفي عن البشر */}
+      <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+        <label>
+          الموقع
+          <input name="website" type="text" tabIndex={-1} autoComplete="off" />
+        </label>
+      </div>
+
       <label className="block">
         <span className="block text-sm font-medium mb-1">عنوان الإعلان</span>
         <input name="title" required minLength={3} maxLength={120} className={input} />

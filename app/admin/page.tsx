@@ -6,7 +6,13 @@ import DeleteButton from '@/components/admin/delete_button';
 import { categoryInfo } from '@/components/listings/listing_card';
 import { adminConfigured, isAdmin } from '@/lib/admin_auth';
 import { listingService } from '@/lib/listing_service';
-import { featureListingAction, logoutAction, unfeatureListingAction } from '@/app/admin/actions';
+import {
+  featureListingAction,
+  logoutAction,
+  renewListingAction,
+  setStatusAction,
+  unfeatureListingAction,
+} from '@/app/admin/actions';
 
 export const metadata: Metadata = {
   title: 'لوحة الإدارة',
@@ -40,6 +46,8 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
   }
 
   const listings = await listingService.getAllListings();
+  const now = Date.now();
+  const isExpired = (l: (typeof listings)[number]) => Boolean(l.expiresAt && l.expiresAt.getTime() <= now);
   const featuredCount = listings.filter((l) => l.isFeatured).length;
 
   return (
@@ -101,6 +109,16 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
                   ) : (
                     <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-gray-600">عادي</span>
                   )}
+                  <div className="mt-2 flex flex-wrap gap-1 text-xs">
+                    {l.status === 'hidden' && (
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700">مخفي</span>
+                    )}
+                    {isExpired(l) ? (
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700">منتهٍ</span>
+                    ) : (
+                      l.expiresAt && <span className="text-gray-500">ينتهي {fmtDate(l.expiresAt)}</span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap items-center gap-2">
@@ -123,6 +141,19 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
                         </button>
                       </form>
                     )}
+                    <form action={renewListingAction}>
+                      <input type="hidden" name="id" value={l.id} />
+                      <button type="submit" className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100">
+                        تجديد 60 يوماً
+                      </button>
+                    </form>
+                    <form action={setStatusAction}>
+                      <input type="hidden" name="id" value={l.id} />
+                      <input type="hidden" name="status" value={l.status === 'hidden' ? 'active' : 'hidden'} />
+                      <button type="submit" className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-bold hover:bg-stone-200">
+                        {l.status === 'hidden' ? 'إظهار' : 'إخفاء'}
+                      </button>
+                    </form>
                     <DeleteButton id={l.id} title={l.title} />
                   </div>
                 </td>

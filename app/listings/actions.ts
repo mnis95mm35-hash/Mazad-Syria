@@ -5,7 +5,9 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { listingService } from '@/lib/listing_service';
 import { CATEGORIES, CITIES } from '@/lib/sample_data';
+import sharp from 'sharp';
 import { isValidPhone } from '@/lib/phone';
+import { isLimited, recordEvent } from '@/lib/rate_limit';
 import { IMAGE_BUCKET, publicImageUrl, supabaseAdmin } from '@/lib/supabase';
 
 export type FormState = { error?: string };
@@ -21,17 +23,35 @@ function detectImageExt(buf: Buffer): 'jpg' | 'png' | 'webp' | null {
   return null;
 }
 
-type Prepared = { buf: Buffer; ext: 'jpg' | 'png' | 'webp' };
+type Prepared = { buf: Buffer; ext: 'webp' };
 
+// نتحقق من النوع الفعلي، ثم نعيد ترميز الصورة: تصغير إلى 1600px كحد أقصى
+// وتحويل إلى WEBP. إعادة الترميز تحذف بيانات EXIF (ومنها موقع GPS).
 async function prepareImage(file: File): Promise<Prepared | { error: string }> {
   if (file.size > MAX_IMAGE_BYTES) return { error: 'حجم إحدى الصور كبير (الحد الأقصى 3 ميغابايت للصورة).' };
-  const buf = Buffer.from(await file.arrayBuffer());
-  const ext = detectImageExt(buf);
-  if (!ext) return { error: 'نوع إحدى الصور غير مدعوم (JPG أو PNG أو WEBP فقط).' };
-  return { buf, ext };
+  const raw = Buffer.from(await file.arrayBuffer());
+  if (!detectImageExt(raw)) return { error: 'نوع إحدى الصور غير مدعوم (JPG أو PNG أو WEBP فقط).' };
+  try {
+    const buf = await sharp(raw)
+      .rotate()
+      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer();
+    return { buf, ext: 'webp' };
+  } catch {
+    return { error: 'تعذّرت معالجة إحدى الصور. جرّب صورة أخرى.' };
+  }
 }
 
+const POST_RULES = [
+  { max: 5, windowMs: 60 * 60 * 1000 },
+  { max: 15, windowMs: 24 * 60 * 60 * 1000 },
+];
+
 export async function createListingAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  // حقل مخفي لا يراه البشر: إن امتلأ فهو روبوت. نتظاهر بالنجاح دون حفظ شيء.
+  if (String(formData.get('website') ?? '').trim()) redirect('/');
+
   const title = String(formData.get('title') ?? '').trim();
   const description = String(formData.get('description') ?? '').trim();
   const price = Number(formData.get('price'));
@@ -51,6 +71,10 @@ export async function createListingAction(_prev: FormState, formData: FormData):
   if (!isValidPhone(sellerPhone)) return { error: 'رقم الهاتف غير صالح.' };
   if (files.length > MAX_IMAGES) return { error: `الحد الأقصى ${MAX_IMAGES} صور لكل إعلان.` };
 
+  if (await isLimited('post', POST_RULES)) {
+    return { error: 'أرسلت عدداً كبيراً من الإعلانات في وقت قصير. حاول لاحقاً.' };
+  }
+
   // نتحقق من كل الصور أولاً، ثم نكتبها، حتى لا نترك ملفات يتيمة عند الفشل
   const prepared: Prepared[] = [];
   for (const f of files) {
@@ -59,13 +83,14 @@ export async function createListingAction(_prev: FormState, formData: FormData):
     prepared.push(p);
   }
 
+  await recordEvent('post');
   const storage = supabaseAdmin().storage.from(IMAGE_BUCKET);
   const images: string[] = [];
   const uploaded: string[] = [];
   for (const p of prepared) {
     const name = `${randomUUID()}.${p.ext}`;
     const { error } = await storage.upload(name, p.buf, {
-      contentType: p.ext === 'jpg' ? 'image/jpeg' : `image/${p.ext}`,
+      contentType: 'image/webp',
       cacheControl: '31536000',
     });
     if (error) {
@@ -77,16 +102,24 @@ export async function createListingAction(_prev: FormState, formData: FormData):
     images.push(publicImageUrl(name));
   }
 
-  const id = await listingService.createListing({
-    title,
-    description: description || null,
-    price,
-    category,
-    city,
-    images,
-    sellerName,
-    sellerPhone,
-  });
+  let id: number;
+  try {
+    id = await listingService.createListing({
+      title,
+      description: description || null,
+      price,
+      category,
+      city,
+      images,
+      sellerName,
+      sellerPhone,
+    });
+  } catch (e) {
+    // لا نترك صوراً يتيمة إن فشل حفظ الإعلان
+    if (uploaded.length) await storage.remove(uploaded);
+    console.error('createListing failed', e);
+    return { error: 'تعذّر حفظ الإعلان، حاول مرة أخرى.' };
+  }
 
   revalidatePath('/');
   redirect(`/listings/${id}`);

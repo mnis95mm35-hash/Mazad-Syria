@@ -1,5 +1,7 @@
 export const SITE = {
   name: 'مزاد سوريا',
+  // عنوان الموقع الرسمي (يُستخدم في sitemap وروابط المشاركة)
+  url: (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://mazad-syria.onrender.com').replace(/\/$/, ''),
   tagline: 'بيع واشترِ كل شيء في سوريا بسهولة وأمان',
   // ضع رقم واتساب الخاص بك (بصيغة دولية بدون +) في ملف .env.local:
   // NEXT_PUBLIC_WHATSAPP=963XXXXXXXXX

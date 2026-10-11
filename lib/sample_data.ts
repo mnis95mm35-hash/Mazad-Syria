@@ -12,6 +12,8 @@ export type Listing = {
   isFeatured?: boolean;
   featuredUntil?: Date | null;
   images?: string[];
+  status?: 'active' | 'hidden';
+  expiresAt?: Date | null;
 };
 
 export const CATEGORIES = [

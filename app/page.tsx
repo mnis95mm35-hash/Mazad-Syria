@@ -3,6 +3,7 @@ import MainLayout from '@/components/layout/main_layout';
 import ListingCard from '@/components/listings/listing_card';
 import SearchBar from '@/components/listings/search_bar';
 import AdSlot from '@/components/listings/ad_slot';
+import Pagination from '@/components/listings/pagination';
 import { listingService } from '@/lib/listing_service';
 import { CATEGORIES } from '@/lib/sample_data';
 
@@ -16,25 +17,39 @@ export default async function HomePage({
     minPrice?: string;
     maxPrice?: string;
     sort?: string;
+    page?: string;
   }>;
 }) {
-  const { q, category, city, minPrice, maxPrice, sort } = await searchParams;
+  const { q, category, city, minPrice, maxPrice, sort, page: pageParam } = await searchParams;
   const toNum = (v?: string) => {
     const n = Number(v);
     return v && Number.isFinite(n) ? n : undefined;
   };
   const sortKey = sort === 'price_asc' || sort === 'price_desc' ? sort : 'newest';
-  const listings = await listingService.getListings({
+  const filtering = Boolean(q || category || city || minPrice || maxPrice || sortKey !== 'newest');
+  const base = {
     q,
     category,
     city,
     minPrice: toNum(minPrice),
     maxPrice: toNum(maxPrice),
     sort: sortKey,
-  });
-  const filtering = Boolean(q || category || city || minPrice || maxPrice || sortKey !== 'newest');
-  const featured = filtering ? [] : listings.filter((l) => l.isFeatured);
-  const rest = filtering ? listings : listings.filter((l) => !l.isFeatured);
+  } as const;
+  const pageNum = Math.max(Math.floor(Number(pageParam)) || 1, 1);
+
+  // الرئيسية بلا فلاتر: المميّز في قسم خاص، والباقي مرقّم. مع الفلاتر: نتيجة واحدة مرقّمة.
+  const [featuredPage, results] = await Promise.all([
+    filtering
+      ? Promise.resolve(null)
+      : listingService.searchListings({ featured: 'only', pageSize: 8 }),
+    listingService.searchListings({
+      ...base,
+      page: pageNum,
+      featured: filtering ? undefined : 'exclude',
+    }),
+  ]);
+  const featured = featuredPage?.items ?? [];
+  const rest = results.items;
 
   return (
     <MainLayout bare>
@@ -108,7 +123,7 @@ export default async function HomePage({
         {/* Latest */}
         <section className="mt-12">
           <h2 className="mb-5 text-2xl font-extrabold">
-            {filtering ? `نتائج البحث (${listings.length})` : 'أحدث الإعلانات'}
+            {filtering ? `نتائج البحث (${results.total})` : 'أحدث الإعلانات'}
           </h2>
           {rest.length === 0 ? (
             <p className="rounded-2xl bg-white p-8 text-center text-gray-500 ring-1 ring-black/5">
@@ -121,6 +136,11 @@ export default async function HomePage({
               ))}
             </div>
           )}
+          <Pagination
+            page={results.page}
+            pageCount={results.pageCount}
+            params={{ q, category, city, minPrice, maxPrice, sort: sortKey === 'newest' ? undefined : sortKey }}
+          />
         </section>
 
         {/* Seller CTA */}

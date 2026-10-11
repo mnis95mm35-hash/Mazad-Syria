@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+import { cache } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import MainLayout from '@/components/layout/main_layout';
@@ -5,18 +7,61 @@ import ImageGallery from '@/components/listings/image_gallery';
 import { categoryInfo } from '@/components/listings/listing_card';
 import { listingService } from '@/lib/listing_service';
 import { toWhatsAppNumber } from '@/lib/phone';
+import { SITE } from '@/lib/site_config';
+
+const validId = (id: string) => /^[1-9][0-9]{0,14}$/.test(id);
+
+// نستعلم مرة واحدة لكل طلب حتى لو استُخدم في الميتاداتا والصفحة
+const loadListing = cache(async (id: string) => (validId(id) ? listingService.getListing(Number(id)) : null));
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const l = await loadListing(id);
+  if (!l) return { title: 'الإعلان غير موجود', robots: { index: false } };
+  const desc = (l.description || `${l.title} للبيع في ${l.city}`).replace(/\s+/g, ' ').slice(0, 160);
+  const title = `${l.title} - ${l.city}`;
+  return {
+    title,
+    description: desc,
+    alternates: { canonical: `/listings/${l.id}` },
+    openGraph: {
+      title,
+      description: desc,
+      url: `/listings/${l.id}`,
+      type: 'website',
+      images: l.images && l.images[0] ? [{ url: l.images[0] }] : undefined,
+    },
+  };
+}
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   // رقم غير صالح في الرابط يعني 404 وليس خطأ 500
-  if (!/^[1-9][0-9]{0,14}$/.test(id)) notFound();
-  const listing = await listingService.getListing(Number(id));
+  const listing = await loadListing(id);
   if (!listing) notFound();
 
   const cat = categoryInfo(listing.category);
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: listing.title,
+    description: listing.description ?? undefined,
+    image: listing.images && listing.images.length ? listing.images : undefined,
+    offers: {
+      '@type': 'Offer',
+      price: listing.price,
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+      url: `${SITE.url}/listings/${listing.id}`,
+    },
+  };
 
   return (
     <MainLayout>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
+      />
       <Link href="/" className="text-sm font-semibold text-emerald-800 hover:underline">← العودة للإعلانات</Link>
 
       <div className="mt-4 grid gap-6 md:grid-cols-3">
