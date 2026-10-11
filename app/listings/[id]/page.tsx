@@ -7,6 +7,8 @@ import ImageGallery from '@/components/listings/image_gallery';
 import { categoryInfo } from '@/components/listings/listing_card';
 import { listingService } from '@/lib/listing_service';
 import { toWhatsAppNumber } from '@/lib/phone';
+import ReportButton from '@/components/listings/report_button';
+import { getCurrentUser } from '@/lib/supabase_auth';
 import { SITE } from '@/lib/site_config';
 
 const validId = (id: string) => /^[1-9][0-9]{0,14}$/.test(id);
@@ -40,6 +42,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const listing = await loadListing(id);
   if (!listing) notFound();
 
+  const user = await getCurrentUser();
+  const isOwner = Boolean(user && listing.userId === user.id);
   const cat = categoryInfo(listing.category);
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -112,6 +116,13 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           <p className="mt-4 text-xs leading-6 text-gray-500">
             نصيحة: عاين السلعة شخصياً ولا ترسل مبالغ مقدماً قبل التأكد.
           </p>
+          {isOwner ? (
+            <Link href={`/listings/${listing.id}/edit`} className="mt-4 block rounded-xl bg-stone-100 py-3 text-center text-sm font-bold hover:bg-stone-200">
+              ✏️ تعديل إعلانك
+            </Link>
+          ) : (
+            <ReportButton id={listing.id} />
+          )}
         </aside>
       </div>
     </MainLayout>

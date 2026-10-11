@@ -49,3 +49,20 @@ export const PLANS: Plan[] = [
     features: ['إعلانات مميزة متعددة', 'صفحة خاصة بمعرضك', 'مساحة إعلانية بانر'],
   },
 ];
+
+// خيارات تمييز الإعلان (أمثلة مبدئية: عدّل الأسعار حسب سوقك)
+export const FEATURE_OPTIONS = [
+  { days: 7, price: 5, label: '7 أيام' },
+  { days: 30, price: 15, label: '30 يوماً' },
+  { days: 90, price: 35, label: '90 يوماً' },
+] as const;
+
+export function featurePrice(days: number): number | null {
+  return FEATURE_OPTIONS.find((o) => o.days === days)?.price ?? null;
+}
+
+// رابط واتساب جاهز لإرسال إثبات الدفع لطلب تمييز
+export function featureRequestWhatsAppUrl(req: { id: number; listingId: number; days: number; amount: number }) {
+  const text = `مرحباً، أرسلت طلب تمييز رقم ${req.id} للإعلان رقم ${req.listingId} لمدة ${req.days} يوماً بمبلغ $${req.amount}. هذا إثبات الدفع:`;
+  return `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(text)}`;
+}

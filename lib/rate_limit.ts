@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 export type Rule = { max: number; windowMs: number };
 
 // مفتاح مجزّأ من عنوان الزائر، فلا نخزّن عنوان IP نفسه
-async function clientKey(scope: string): Promise<string> {
+export async function clientKey(scope: string): Promise<string> {
   const h = await headers();
   const ip = (h.get('x-forwarded-for')?.split(',')[0] ?? h.get('x-real-ip') ?? 'unknown').trim();
   const salt = process.env.ADMIN_SESSION_SECRET ?? 'mazad';

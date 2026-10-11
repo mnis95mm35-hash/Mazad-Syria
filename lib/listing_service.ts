@@ -32,7 +32,10 @@ export type NewListingInput = {
   images: string[];
   sellerName: string;
   sellerPhone: string | null;
+  userId?: string | null;
 };
+
+export type ListingPatch = Omit<NewListingInput, 'userId'>;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const DEFAULT_PAGE_SIZE = 24;
@@ -51,8 +54,9 @@ type Row = {
   is_featured: boolean;
   featured_until: string | null;
   created_at: string;
-  status: 'active' | 'hidden';
+  status: 'active' | 'hidden' | 'blocked';
   expires_at: string | null;
+  user_id: string | null;
 };
 
 function fromRow(r: Row): Listing {
@@ -75,6 +79,7 @@ function fromRow(r: Row): Listing {
     createdAt: new Date(r.created_at),
     status: r.status,
     expiresAt: r.expires_at ? new Date(r.expires_at) : null,
+    userId: r.user_id,
   };
 }
 
@@ -156,6 +161,35 @@ async function getAllListings(): Promise<Listing[]> {
   return (data as Row[]).map(fromRow);
 }
 
+// إعلانات مستخدم بعينه بكل حالاتها (لصفحة حسابي)
+async function getByOwner(userId: string): Promise<Listing[]> {
+  const { data, error } = await supabaseAdmin()
+    .from('listings')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (error) throw new Error(`تعذّر جلب إعلاناتك: ${error.message}`);
+  return (data as Row[]).map(fromRow);
+}
+
+async function updateListing(id: number, patch: ListingPatch): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from('listings')
+    .update({
+      title: patch.title,
+      description: patch.description,
+      price: patch.price,
+      category: patch.category,
+      city: patch.city,
+      images: patch.images,
+      seller_name: patch.sellerName,
+      seller_phone: patch.sellerPhone,
+    })
+    .eq('id', id);
+  if (error) throw new Error(`تعذّر تحديث الإعلان: ${error.message}`);
+}
+
 // لخريطة الموقع
 async function getSitemapEntries(): Promise<{ id: number; createdAt: Date }[]> {
   const { data, error } = await supabaseAdmin()
@@ -181,6 +215,7 @@ async function createListing(input: NewListingInput): Promise<number> {
       images: input.images,
       seller_name: input.sellerName,
       seller_phone: input.sellerPhone,
+      user_id: input.userId ?? null,
       expires_at: new Date(Date.now() + LISTING_LIFETIME_DAYS * DAY_MS).toISOString(),
     })
     .select('id')
@@ -201,7 +236,7 @@ async function setFeatured(id: number, days: number | null): Promise<void> {
   if (error) throw new Error(`تعذّر تحديث التمييز: ${error.message}`);
 }
 
-async function setStatus(id: number, status: 'active' | 'hidden'): Promise<void> {
+async function setStatus(id: number, status: 'active' | 'hidden' | 'blocked'): Promise<void> {
   const { error } = await supabaseAdmin().from('listings').update({ status }).eq('id', id);
   if (error) throw new Error(`تعذّر تحديث الحالة: ${error.message}`);
 }
@@ -226,6 +261,8 @@ export const listingService = {
   searchListings,
   getListing,
   getAllListings,
+  getByOwner,
+  updateListing,
   getSitemapEntries,
   createListing,
   setFeatured,

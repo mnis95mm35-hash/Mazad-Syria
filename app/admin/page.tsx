@@ -6,9 +6,13 @@ import DeleteButton from '@/components/admin/delete_button';
 import { categoryInfo } from '@/components/listings/listing_card';
 import { adminConfigured, isAdmin } from '@/lib/admin_auth';
 import { listingService } from '@/lib/listing_service';
+import { orders } from '@/lib/orders_service';
+import { reports } from '@/lib/reports_service';
 import {
+  activateRequestAction,
   featureListingAction,
   logoutAction,
+  rejectRequestAction,
   renewListingAction,
   setStatusAction,
   unfeatureListingAction,
@@ -45,7 +49,12 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
     );
   }
 
-  const listings = await listingService.getAllListings();
+  const [listings, requests, reportCounts] = await Promise.all([
+    listingService.getAllListings(),
+    orders.listRecent(),
+    reports.countsByListing(),
+  ]);
+  const pendingRequests = requests.filter((r) => r.status === 'pending');
   const now = Date.now();
   const isExpired = (l: (typeof listings)[number]) => Boolean(l.expiresAt && l.expiresAt.getTime() <= now);
   const featuredCount = listings.filter((l) => l.isFeatured).length;
@@ -76,7 +85,44 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
         </div>
       </div>
 
-      <div className="mt-8 overflow-x-auto rounded-2xl bg-white ring-1 ring-black/5">
+      <section className="mt-8">
+        <h2 className="mb-3 text-xl font-extrabold">طلبات التمييز المعلقة ({pendingRequests.length})</h2>
+        {pendingRequests.length === 0 ? (
+          <p className="rounded-2xl bg-white p-5 text-sm text-gray-500 ring-1 ring-black/5">لا توجد طلبات معلقة.</p>
+        ) : (
+          <div className="space-y-3">
+            {pendingRequests.map((r) => (
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 ring-1 ring-black/5">
+                <div className="text-sm">
+                  <p className="font-bold">
+                    طلب #{r.id} · إعلان #{r.listingId} {r.listingTitle ? `(${r.listingTitle})` : ''}
+                  </p>
+                  <p className="text-gray-500">
+                    {r.days} يوماً · ${r.amount} · {fmtDate(r.createdAt)}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <form action={activateRequestAction}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <button type="submit" className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-bold text-emerald-950 hover:bg-amber-300">
+                      تم الدفع: فعّل التمييز
+                    </button>
+                  </form>
+                  <form action={rejectRequestAction}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <button type="submit" className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-bold hover:bg-stone-200">
+                      رفض
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <h2 className="mb-3 mt-10 text-xl font-extrabold">كل الإعلانات</h2>
+      <div className="overflow-x-auto rounded-2xl bg-white ring-1 ring-black/5">
         <table className="w-full min-w-[820px] text-sm">
           <thead className="bg-stone-50 text-right text-gray-500">
             <tr>
@@ -110,8 +156,16 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
                     <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-gray-600">عادي</span>
                   )}
                   <div className="mt-2 flex flex-wrap gap-1 text-xs">
+                    {l.status === 'blocked' && (
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700">محظور</span>
+                    )}
                     {l.status === 'hidden' && (
-                      <span className="rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700">مخفي</span>
+                      <span className="rounded-full bg-stone-100 px-2 py-0.5 font-bold text-gray-700">مخفي (من صاحبه)</span>
+                    )}
+                    {(reportCounts[l.id] ?? 0) > 0 && (
+                      <span className="rounded-full bg-orange-50 px-2 py-0.5 font-bold text-orange-700">
+                        🚩 {reportCounts[l.id]} بلاغ
+                      </span>
                     )}
                     {isExpired(l) ? (
                       <span className="rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700">منتهٍ</span>
@@ -149,9 +203,9 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
                     </form>
                     <form action={setStatusAction}>
                       <input type="hidden" name="id" value={l.id} />
-                      <input type="hidden" name="status" value={l.status === 'hidden' ? 'active' : 'hidden'} />
+                      <input type="hidden" name="status" value={l.status === 'active' ? 'blocked' : 'active'} />
                       <button type="submit" className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-bold hover:bg-stone-200">
-                        {l.status === 'hidden' ? 'إظهار' : 'إخفاء'}
+                        {l.status === 'active' ? 'حظر' : 'إظهار'}
                       </button>
                     </form>
                     <DeleteButton id={l.id} title={l.title} />

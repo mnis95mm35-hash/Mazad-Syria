@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { listingService } from '@/lib/listing_service';
 import { isLimited, recordEvent } from '@/lib/rate_limit';
+import { orders } from '@/lib/orders_service';
 import { IMAGE_BUCKET, imagePathFromUrl, supabaseAdmin } from '@/lib/supabase';
 import { adminConfigured, checkPassword, endSession, isAdmin, startSession } from '@/lib/admin_auth';
 
@@ -61,9 +62,26 @@ export async function setStatusAction(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = Number(formData.get('id'));
   const status = String(formData.get('status'));
-  if (!Number.isInteger(id) || (status !== 'active' && status !== 'hidden')) return;
+  if (!Number.isInteger(id) || (status !== 'active' && status !== 'blocked')) return;
   await listingService.setStatus(id, status);
   revalidatePath('/');
+  revalidatePath('/admin');
+}
+
+export async function activateRequestAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get('id'));
+  if (!Number.isInteger(id)) return;
+  await orders.activate(id);
+  revalidatePath('/');
+  revalidatePath('/admin');
+}
+
+export async function rejectRequestAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get('id'));
+  if (!Number.isInteger(id)) return;
+  await orders.reject(id);
   revalidatePath('/admin');
 }
 

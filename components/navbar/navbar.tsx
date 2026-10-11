@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { SITE } from '@/lib/site_config';
+import { getCurrentUser } from '@/lib/supabase_auth';
 
-export default function Navbar() {
+export default async function Navbar() {
+  const user = await getCurrentUser();
   return (
     <header className="sticky top-0 z-20 border-b border-emerald-900/10 bg-white/90 backdrop-blur">
-      <div className="container mx-auto flex items-center justify-between px-4 py-3">
+      <div className="container mx-auto flex items-center justify-between gap-3 px-4 py-3">
         <Link href="/" className="flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-800 text-lg font-black text-amber-300">
             م
@@ -20,12 +22,20 @@ export default function Navbar() {
           <Link href="/advertise" className="hover:text-emerald-800">أعلن معنا</Link>
         </nav>
 
-        <Link
-          href="/listings/new"
-          className="rounded-xl bg-amber-400 px-5 py-2.5 text-sm font-bold text-emerald-950 shadow-sm transition hover:bg-amber-300"
-        >
-          + أضف إعلاناً
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={user ? '/account' : '/login'}
+            className="rounded-xl px-3 py-2.5 text-sm font-bold text-emerald-900 hover:bg-emerald-50"
+          >
+            {user ? 'حسابي' : 'دخول'}
+          </Link>
+          <Link
+            href="/listings/new"
+            className="rounded-xl bg-amber-400 px-5 py-2.5 text-sm font-bold text-emerald-950 shadow-sm transition hover:bg-amber-300"
+          >
+            + أضف إعلاناً
+          </Link>
+        </div>
       </div>
     </header>
   );

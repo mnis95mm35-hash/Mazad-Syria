@@ -12,7 +12,8 @@ export type Listing = {
   isFeatured?: boolean;
   featuredUntil?: Date | null;
   images?: string[];
-  status?: 'active' | 'hidden';
+  status?: 'active' | 'hidden' | 'blocked';
+  userId?: string | null;
   expiresAt?: Date | null;
 };
 
