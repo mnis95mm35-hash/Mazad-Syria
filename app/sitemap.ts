@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { listingService } from '@/lib/listing_service';
+import { CATEGORIES } from '@/lib/sample_data';
 import { SITE } from '@/lib/site_config';
+import { browsePath } from '@/lib/taxonomy';
 
 export const revalidate = 3600;
 
@@ -8,8 +10,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [
     { url: `${SITE.url}/`, changeFrequency: 'hourly', priority: 1 },
     { url: `${SITE.url}/advertise`, changeFrequency: 'monthly', priority: 0.5 },
+    ...CATEGORIES.map((c) => ({
+      url: `${SITE.url}${browsePath({ category: c.slug })}`,
+      changeFrequency: 'daily' as const,
+      priority: 0.9,
+    })),
   ];
   try {
+    // صفحات (قسم/فرعي/مدينة) التي فيها إعلانات فقط، حتى لا نقدّم صفحات فارغة لمحركات البحث
+    const facets = await listingService.getFacets();
+    const seen = new Set<string>();
+    const add = (path: string) => {
+      if (seen.has(path)) return;
+      seen.add(path);
+      entries.push({ url: `${SITE.url}${path}`, changeFrequency: 'daily', priority: 0.8 });
+    };
+    for (const f of facets) {
+      add(browsePath({ category: f.category, city: f.city }));
+      if (f.subcategory) {
+        add(browsePath({ category: f.category, sub: f.subcategory }));
+        add(browsePath({ category: f.category, sub: f.subcategory, city: f.city }));
+      }
+    }
     const listings = await listingService.getSitemapEntries();
     for (const l of listings) {
       entries.push({

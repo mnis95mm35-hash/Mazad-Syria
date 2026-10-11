@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import MainLayout from '@/components/layout/main_layout';
 import OwnerDeleteButton from '@/components/account/owner_delete_button';
 import { listingService } from '@/lib/listing_service';
+import { formatPrice } from '@/lib/format';
 import { orders } from '@/lib/orders_service';
 import { getCurrentUser } from '@/lib/supabase_auth';
 import { FEATURE_OPTIONS, featureRequestWhatsAppUrl } from '@/lib/site_config';
@@ -64,7 +65,7 @@ export default async function AccountPage() {
                         {l.title}
                       </Link>
                       <p className="text-sm text-gray-500">
-                        ${l.price.toLocaleString('en-US')} · {l.city}
+                        {formatPrice(l.price, l.currency)} · {l.city}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
                         {l.status === 'blocked' && <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">محظور من الإدارة</span>}

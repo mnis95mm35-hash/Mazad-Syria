@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import sharp from 'sharp';
 import { CATEGORIES, CITIES } from '@/lib/sample_data';
 import { isValidPhone } from '@/lib/phone';
+import { isCurrency, isValidArea, isValidSub, type Currency } from '@/lib/taxonomy';
 import { IMAGE_BUCKET, publicImageUrl, supabaseAdmin } from '@/lib/supabase';
 
 export const MAX_IMAGES = 5;
@@ -15,6 +16,9 @@ export type ListingFields = {
   city: string;
   sellerName: string;
   sellerPhone: string;
+  currency: Currency;
+  subcategory: string | null;
+  area: string | null;
 };
 
 // تحقق موحّد لحقول نموذج الإعلان (إنشاء وتعديل)
@@ -26,16 +30,35 @@ export function parseListingFields(fd: FormData): { error: string } | { fields: 
   const city = String(fd.get('city') ?? '');
   const sellerName = String(fd.get('sellerName') ?? '').trim();
   const sellerPhone = String(fd.get('sellerPhone') ?? '').trim();
+  const currency = fd.get('currency');
+  const subcategory = String(fd.get('subcategory') ?? '');
+  const area = String(fd.get('area') ?? '');
 
   if (title.length < 3) return { error: 'العنوان قصير جداً (3 أحرف على الأقل).' };
   if (title.length > 120) return { error: 'العنوان طويل جداً.' };
   if (!Number.isFinite(price) || price < 0) return { error: 'السعر غير صالح.' };
+  if (!isCurrency(currency)) return { error: 'اختر عملة السعر.' };
   if (!CATEGORIES.some((c) => c.slug === category)) return { error: 'اختر قسماً من القائمة.' };
-  if (!CITIES.includes(city)) return { error: 'اختر مدينة من القائمة.' };
+  if (subcategory && !isValidSub(category, subcategory)) return { error: 'القسم الفرعي لا يناسب القسم المختار.' };
+  if (!CITIES.includes(city)) return { error: 'اختر محافظة من القائمة.' };
+  if (area && !isValidArea(city, area)) return { error: 'المدينة أو البلدة لا تناسب المحافظة المختارة.' };
   if (sellerName.length < 2) return { error: 'أدخل اسمك.' };
   if (!sellerPhone) return { error: 'رقم الهاتف مطلوب ليتمكن المشترون من التواصل معك.' };
   if (!isValidPhone(sellerPhone)) return { error: 'رقم الهاتف غير صالح.' };
-  return { fields: { title, description: description || null, price, category, city, sellerName, sellerPhone } };
+  return {
+    fields: {
+      title,
+      description: description || null,
+      price,
+      category,
+      city,
+      sellerName,
+      sellerPhone,
+      currency,
+      subcategory: subcategory || null,
+      area: area || null,
+    },
+  };
 }
 
 export function filesFrom(fd: FormData): File[] {

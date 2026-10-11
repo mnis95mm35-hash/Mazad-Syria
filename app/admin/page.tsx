@@ -6,6 +6,7 @@ import DeleteButton from '@/components/admin/delete_button';
 import { categoryInfo } from '@/components/listings/listing_card';
 import { adminConfigured, isAdmin } from '@/lib/admin_auth';
 import { listingService } from '@/lib/listing_service';
+import { formatPrice } from '@/lib/format';
 import { orders } from '@/lib/orders_service';
 import { reports } from '@/lib/reports_service';
 import {
@@ -146,7 +147,7 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
                     {l.sellerPhone ? ` · ${l.sellerPhone}` : ''}
                   </div>
                 </td>
-                <td className="px-4 py-3 font-bold">${l.price.toLocaleString('en-US')}</td>
+                <td className="px-4 py-3 font-bold">{formatPrice(l.price, l.currency)}</td>
                 <td className="px-4 py-3">
                   {l.isFeatured ? (
                     <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">

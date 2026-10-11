@@ -1,14 +1,17 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { createListingAction, updateListingAction, type FormState } from '@/app/listings/actions';
 import { CATEGORIES, CITIES, type Listing } from '@/lib/sample_data';
+import { CURRENCIES, areasOf, subsOf } from '@/lib/taxonomy';
 
 const input = 'w-full border border-gray-300 rounded-lg px-4 py-2';
 
 // نموذج واحد للإنشاء والتعديل: عند تمرير listing يعمل كنموذج تعديل
 export default function ListingForm({ listing }: { listing?: Listing }) {
   const editing = Boolean(listing);
+  const [category, setCategory] = useState(listing?.category ?? '');
+  const [city, setCity] = useState(listing?.city ?? '');
   const [state, action, pending] = useActionState<FormState, FormData>(
     editing ? updateListingAction : createListingAction,
     {},
@@ -37,7 +40,13 @@ export default function ListingForm({ listing }: { listing?: Listing }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="block">
           <span className="block text-sm font-medium mb-1">القسم</span>
-          <select name="category" required defaultValue={listing?.category ?? ''} className={input}>
+          <select
+            name="category"
+            required
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className={input}
+          >
             <option value="" disabled>اختر القسم</option>
             {CATEGORIES.map((c) => (
               <option key={c.slug} value={c.slug}>{c.label}</option>
@@ -45,9 +54,9 @@ export default function ListingForm({ listing }: { listing?: Listing }) {
           </select>
         </label>
         <label className="block">
-          <span className="block text-sm font-medium mb-1">المدينة</span>
-          <select name="city" required defaultValue={listing?.city ?? ''} className={input}>
-            <option value="" disabled>اختر المدينة</option>
+          <span className="block text-sm font-medium mb-1">المحافظة</span>
+          <select name="city" required value={city} onChange={(e) => setCity(e.target.value)} className={input}>
+            <option value="" disabled>اختر المحافظة</option>
             {CITIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
@@ -55,10 +64,44 @@ export default function ListingForm({ listing }: { listing?: Listing }) {
         </label>
       </div>
 
-      <label className="block">
-        <span className="block text-sm font-medium mb-1">السعر (بالدولار)</span>
-        <input name="price" type="number" min={0} step="any" required defaultValue={listing?.price} className={input} />
-      </label>
+      {areasOf(city).length > 0 && (
+        <label className="block">
+          <span className="block text-sm font-medium mb-1">المدينة / البلدة / المنطقة (اختياري)</span>
+          <select key={city} name="area" defaultValue={listing?.city === city ? (listing?.area ?? '') : ''} className={input}>
+            <option value="">غير محدد</option>
+            {areasOf(city).map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {subsOf(category).length > 0 && (
+        <label className="block">
+          <span className="block text-sm font-medium mb-1">القسم الفرعي (اختياري)</span>
+          <select key={category} name="subcategory" defaultValue={listing?.category === category ? (listing?.subcategory ?? '') : ''} className={input}>
+            <option value="">بدون</option>
+            {subsOf(category).map((s) => (
+              <option key={s.slug} value={s.slug}>{s.label}</option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      <div className="grid grid-cols-[1fr_auto] gap-3">
+        <label className="block">
+          <span className="block text-sm font-medium mb-1">السعر</span>
+          <input name="price" type="number" min={0} step="any" required defaultValue={listing?.price} className={input} />
+        </label>
+        <label className="block">
+          <span className="block text-sm font-medium mb-1">العملة</span>
+          <select name="currency" defaultValue={listing?.currency ?? 'USD'} className={input}>
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>{c.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {listing && (listing.images ?? []).length > 0 && (
         <fieldset>

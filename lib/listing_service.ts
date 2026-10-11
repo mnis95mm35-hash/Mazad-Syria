@@ -9,6 +9,10 @@ export type ListingFilters = {
   city?: string;
   minPrice?: number;
   maxPrice?: number;
+  subcategory?: string;
+  area?: string;
+  // عند تصفية السعر أو ترتيبه نقارن داخل عملة واحدة (الافتراضي دولار)
+  currency?: 'USD' | 'SYP';
   sort?: SortKey;
   page?: number;
   pageSize?: number;
@@ -32,6 +36,9 @@ export type NewListingInput = {
   images: string[];
   sellerName: string;
   sellerPhone: string | null;
+  currency: 'USD' | 'SYP';
+  subcategory: string | null;
+  area: string | null;
   userId?: string | null;
 };
 
@@ -57,6 +64,9 @@ type Row = {
   status: 'active' | 'hidden' | 'blocked';
   expires_at: string | null;
   user_id: string | null;
+  currency: 'USD' | 'SYP';
+  subcategory: string | null;
+  area: string | null;
 };
 
 function fromRow(r: Row): Listing {
@@ -80,6 +90,9 @@ function fromRow(r: Row): Listing {
     status: r.status,
     expiresAt: r.expires_at ? new Date(r.expires_at) : null,
     userId: r.user_id,
+    currency: r.currency ?? 'USD',
+    subcategory: r.subcategory,
+    area: r.area,
   };
 }
 
@@ -115,7 +128,12 @@ async function searchListings(filters: ListingFilters = {}): Promise<ListingsPag
     .gt('expires_at', nowIso);
 
   if (filters.category) query = query.eq('category', filters.category);
+  if (filters.subcategory) query = query.eq('subcategory', filters.subcategory);
   if (filters.city) query = query.eq('city', filters.city);
+  if (filters.area) query = query.eq('area', filters.area);
+  const priceMode =
+    filters.minPrice !== undefined || filters.maxPrice !== undefined || filters.sort === 'price_asc' || filters.sort === 'price_desc';
+  if (priceMode) query = query.eq('currency', filters.currency ?? 'USD');
   if (filters.minPrice !== undefined) query = query.gte('price', filters.minPrice);
   if (filters.maxPrice !== undefined) query = query.lte('price', filters.maxPrice);
   const q = filters.q ? escapeSearch(filters.q) : '';
@@ -185,6 +203,9 @@ async function updateListing(id: number, patch: ListingPatch): Promise<void> {
       images: patch.images,
       seller_name: patch.sellerName,
       seller_phone: patch.sellerPhone,
+      currency: patch.currency,
+      subcategory: patch.subcategory,
+      area: patch.area,
     })
     .eq('id', id);
   if (error) throw new Error(`تعذّر تحديث الإعلان: ${error.message}`);
@@ -203,6 +224,18 @@ async function getSitemapEntries(): Promise<{ id: number; createdAt: Date }[]> {
   return (data as { id: number; created_at: string }[]).map((r) => ({ id: r.id, createdAt: new Date(r.created_at) }));
 }
 
+// توليفات (قسم، فرعي، مدينة) التي فيها إعلانات فعّالة، لخريطة الموقع وروابط التصفح
+async function getFacets(): Promise<{ category: string; subcategory: string | null; city: string }[]> {
+  const { data, error } = await supabaseAdmin()
+    .from('listings')
+    .select('category, subcategory, city')
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString())
+    .limit(5000);
+  if (error) throw new Error(error.message);
+  return data as { category: string; subcategory: string | null; city: string }[];
+}
+
 async function createListing(input: NewListingInput): Promise<number> {
   const { data, error } = await supabaseAdmin()
     .from('listings')
@@ -215,6 +248,9 @@ async function createListing(input: NewListingInput): Promise<number> {
       images: input.images,
       seller_name: input.sellerName,
       seller_phone: input.sellerPhone,
+      currency: input.currency,
+      subcategory: input.subcategory,
+      area: input.area,
       user_id: input.userId ?? null,
       expires_at: new Date(Date.now() + LISTING_LIFETIME_DAYS * DAY_MS).toISOString(),
     })
@@ -264,6 +300,7 @@ export const listingService = {
   getByOwner,
   updateListing,
   getSitemapEntries,
+  getFacets,
   createListing,
   setFeatured,
   setStatus,

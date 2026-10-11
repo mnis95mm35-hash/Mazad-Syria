@@ -16,9 +16,9 @@ export default async function Navbar() {
 
         <nav className="hidden items-center gap-6 text-sm font-semibold text-gray-700 md:flex">
           <Link href="/" className="hover:text-emerald-800">الرئيسية</Link>
-          <Link href="/?category=cars" className="hover:text-emerald-800">سيارات</Link>
-          <Link href="/?category=real-estate" className="hover:text-emerald-800">عقارات</Link>
-          <Link href="/?category=electronics" className="hover:text-emerald-800">إلكترونيات</Link>
+          <Link href="/cars" className="hover:text-emerald-800">سيارات</Link>
+          <Link href="/real-estate" className="hover:text-emerald-800">عقارات</Link>
+          <Link href="/electronics" className="hover:text-emerald-800">إلكترونيات</Link>
           <Link href="/advertise" className="hover:text-emerald-800">أعلن معنا</Link>
         </nav>
 

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import MainLayout from '@/components/layout/main_layout';
 import ListingCard from '@/components/listings/listing_card';
 import SearchBar from '@/components/listings/search_bar';
@@ -6,6 +7,7 @@ import AdSlot from '@/components/listings/ad_slot';
 import Pagination from '@/components/listings/pagination';
 import { listingService } from '@/lib/listing_service';
 import { CATEGORIES } from '@/lib/sample_data';
+import { browsePath, categoryExists, isCurrency } from '@/lib/taxonomy';
 
 export default async function HomePage({
   searchParams,
@@ -17,15 +19,21 @@ export default async function HomePage({
     minPrice?: string;
     maxPrice?: string;
     sort?: string;
+    currency?: string;
     page?: string;
   }>;
 }) {
-  const { q, category, city, minPrice, maxPrice, sort, page: pageParam } = await searchParams;
+  const { q, category, city, minPrice, maxPrice, sort, currency, page: pageParam } = await searchParams;
   const toNum = (v?: string) => {
     const n = Number(v);
     return v && Number.isFinite(n) ? n : undefined;
   };
   const sortKey = sort === 'price_asc' || sort === 'price_desc' ? sort : 'newest';
+  // رابط قديم من نوع /?category=cars يُحوَّل إلى صفحة التصنيف النظيفة /cars
+  if (category && categoryExists(category) && !q && !minPrice && !maxPrice && sortKey === 'newest' && !pageParam) {
+    redirect(browsePath({ category, city }));
+  }
+  const cur = isCurrency(currency) ? currency : undefined;
   const filtering = Boolean(q || category || city || minPrice || maxPrice || sortKey !== 'newest');
   const base = {
     q,
@@ -34,6 +42,7 @@ export default async function HomePage({
     minPrice: toNum(minPrice),
     maxPrice: toNum(maxPrice),
     sort: sortKey,
+    currency: cur,
   } as const;
   const pageNum = Math.max(Math.floor(Number(pageParam)) || 1, 1);
 
@@ -72,6 +81,7 @@ export default async function HomePage({
               minPrice={minPrice}
               maxPrice={maxPrice}
               sort={sortKey}
+              currency={cur}
             />
           </div>
           <div className="mt-6 flex flex-wrap gap-3 text-sm text-emerald-100">
@@ -88,7 +98,7 @@ export default async function HomePage({
           {CATEGORIES.map((c) => (
             <Link
               key={c.slug}
-              href={`/?category=${c.slug}`}
+              href={`/${c.slug}`}
               className={`rounded-2xl bg-white p-4 text-center transition hover:-translate-y-0.5 hover:shadow-lg ${
                 category === c.slug ? 'ring-2 ring-emerald-700' : 'ring-1 ring-black/5'
               }`}
@@ -139,7 +149,15 @@ export default async function HomePage({
           <Pagination
             page={results.page}
             pageCount={results.pageCount}
-            params={{ q, category, city, minPrice, maxPrice, sort: sortKey === 'newest' ? undefined : sortKey }}
+            params={{
+              q,
+              category,
+              city,
+              minPrice,
+              maxPrice,
+              sort: sortKey === 'newest' ? undefined : sortKey,
+              currency: cur,
+            }}
           />
         </section>
 

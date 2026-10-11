@@ -14,6 +14,9 @@ export type Listing = {
   images?: string[];
   status?: 'active' | 'hidden' | 'blocked';
   userId?: string | null;
+  currency?: 'USD' | 'SYP';
+  subcategory?: string | null;
+  area?: string | null;
   expiresAt?: Date | null;
 };
 
@@ -26,7 +29,23 @@ export const CATEGORIES = [
   { slug: 'services', label: 'خدمات', icon: '🛠️' },
 ];
 
-export const CITIES = ['دمشق', 'حلب', 'حمص', 'اللاذقية', 'حماة', 'طرطوس'];
+// المحافظات السورية الأربع عشرة
+export const CITIES = [
+  'دمشق',
+  'ريف دمشق',
+  'حلب',
+  'حمص',
+  'حماة',
+  'اللاذقية',
+  'طرطوس',
+  'إدلب',
+  'دير الزور',
+  'الرقة',
+  'الحسكة',
+  'درعا',
+  'السويداء',
+  'القنيطرة',
+];
 
 const d = (days: number) => new Date(Date.now() - days * 86400000);
 

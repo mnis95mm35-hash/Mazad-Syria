@@ -10,6 +10,8 @@ import { toWhatsAppNumber } from '@/lib/phone';
 import ReportButton from '@/components/listings/report_button';
 import { getCurrentUser } from '@/lib/supabase_auth';
 import { SITE } from '@/lib/site_config';
+import { formatPrice } from '@/lib/format';
+import { browsePath, citySlug, subLabel } from '@/lib/taxonomy';
 
 const validId = (id: string) => /^[1-9][0-9]{0,14}$/.test(id);
 
@@ -54,7 +56,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     offers: {
       '@type': 'Offer',
       price: listing.price,
-      priceCurrency: 'USD',
+      priceCurrency: listing.currency ?? 'USD',
       availability: 'https://schema.org/InStock',
       url: `${SITE.url}/listings/${listing.id}`,
     },
@@ -79,8 +81,24 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             )}
             <h1 className="text-2xl font-black md:text-3xl">{listing.title}</h1>
             <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-800">{cat.label}</span>
-              <span>📍 {listing.city}</span>
+              <Link href={browsePath({ category: listing.category })} className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-800 hover:bg-emerald-100">
+                {cat.label}
+              </Link>
+              {listing.subcategory && subLabel(listing.category, listing.subcategory) && (
+                <Link
+                  href={browsePath({ category: listing.category, sub: listing.subcategory })}
+                  className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-800 hover:bg-emerald-100"
+                >
+                  {subLabel(listing.category, listing.subcategory)}
+                </Link>
+              )}
+              {citySlug(listing.city) ? (
+                <Link href={browsePath({ category: listing.category, city: listing.city })} className="hover:text-emerald-800">
+                  📍 {listing.city}{listing.area ? ` - ${listing.area}` : ''}
+                </Link>
+              ) : (
+                <span>📍 {listing.city}{listing.area ? ` - ${listing.area}` : ''}</span>
+              )}
             </p>
             <h2 className="mb-2 mt-8 text-lg font-extrabold">الوصف</h2>
             <p className="whitespace-pre-line leading-8 text-gray-700">
@@ -90,7 +108,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         </div>
 
         <aside className="h-fit rounded-3xl bg-white p-6 ring-1 ring-black/5 md:sticky md:top-24">
-          <p className="text-4xl font-black text-emerald-800">${listing.price.toLocaleString('en-US')}</p>
+          <p className="text-4xl font-black text-emerald-800">{formatPrice(listing.price, listing.currency)}</p>
           <div className="mt-5 rounded-2xl bg-stone-50 p-4">
             <p className="text-sm text-gray-500">البائع</p>
             <p className="text-lg font-bold">{listing.sellerName}</p>

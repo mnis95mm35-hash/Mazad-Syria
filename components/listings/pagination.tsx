@@ -4,10 +4,12 @@ export default function Pagination({
   page,
   pageCount,
   params,
+  basePath = '/',
 }: {
   page: number;
   pageCount: number;
   params: Record<string, string | undefined>;
+  basePath?: string;
 }) {
   if (pageCount <= 1) return null;
 
@@ -16,7 +18,7 @@ export default function Pagination({
     for (const [k, v] of Object.entries(params)) if (v) sp.set(k, v);
     if (p > 1) sp.set('page', String(p));
     const qs = sp.toString();
-    return qs ? `/?${qs}` : '/';
+    return qs ? `${basePath}?${qs}` : basePath;
   };
 
   // نعرض الأولى والأخيرة والصفحات القريبة من الحالية
