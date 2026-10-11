@@ -4,9 +4,12 @@ import MainLayout from '@/components/layout/main_layout';
 import ImageGallery from '@/components/listings/image_gallery';
 import { categoryInfo } from '@/components/listings/listing_card';
 import { listingService } from '@/lib/listing_service';
+import { toWhatsAppNumber } from '@/lib/phone';
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // رقم غير صالح في الرابط يعني 404 وليس خطأ 500
+  if (!/^[1-9][0-9]{0,14}$/.test(id)) notFound();
   const listing = await listingService.getListing(Number(id));
   if (!listing) notFound();
 
@@ -44,12 +47,22 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
             <p className="text-lg font-bold">{listing.sellerName}</p>
           </div>
           {listing.sellerPhone && (
-            <a
-              href={`tel:${listing.sellerPhone}`}
-              className="mt-4 block rounded-xl bg-emerald-900 py-3.5 text-center font-bold text-white transition hover:bg-emerald-800"
-            >
-              📞 اتصل بالبائع
-            </a>
+            <div className="mt-4 space-y-2">
+              <a
+                href={`https://wa.me/${toWhatsAppNumber(listing.sellerPhone)}?text=${encodeURIComponent(`مرحباً، أنا مهتم بإعلانك "${listing.title}" على مزاد سوريا`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-xl bg-green-600 py-3.5 text-center font-bold text-white transition hover:bg-green-700"
+              >
+                💬 تواصل عبر واتساب
+              </a>
+              <a
+                href={`tel:${listing.sellerPhone}`}
+                className="block rounded-xl bg-emerald-900 py-3.5 text-center font-bold text-white transition hover:bg-emerald-800"
+              >
+                📞 اتصل بالبائع
+              </a>
+            </div>
           )}
           <p className="mt-4 text-xs leading-6 text-gray-500">
             نصيحة: عاين السلعة شخصياً ولا ترسل مبالغ مقدماً قبل التأكد.

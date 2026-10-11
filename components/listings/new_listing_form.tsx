@@ -68,8 +68,8 @@ export default function NewListingForm() {
           <input name="sellerName" required minLength={2} className={input} />
         </label>
         <label className="block">
-          <span className="block text-sm font-medium mb-1">رقم الهاتف (اختياري)</span>
-          <input name="sellerPhone" type="tel" dir="ltr" className={input} />
+          <span className="block text-sm font-medium mb-1">رقم الهاتف / واتساب</span>
+          <input name="sellerPhone" type="tel" dir="ltr" required placeholder="09XXXXXXXX" className={input} />
         </label>
       </div>
 

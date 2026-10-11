@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { listingService } from '@/lib/listing_service';
 import { CATEGORIES, CITIES } from '@/lib/sample_data';
+import { isValidPhone } from '@/lib/phone';
 import { IMAGE_BUCKET, publicImageUrl, supabaseAdmin } from '@/lib/supabase';
 
 export type FormState = { error?: string };
@@ -46,7 +47,8 @@ export async function createListingAction(_prev: FormState, formData: FormData):
   if (!CATEGORIES.some((c) => c.slug === category)) return { error: 'اختر قسماً من القائمة.' };
   if (!CITIES.includes(city)) return { error: 'اختر مدينة من القائمة.' };
   if (sellerName.length < 2) return { error: 'أدخل اسمك.' };
-  if (sellerPhone && !/^[0-9+\s-]{6,20}$/.test(sellerPhone)) return { error: 'رقم الهاتف غير صالح.' };
+  if (!sellerPhone) return { error: 'رقم الهاتف مطلوب ليتمكن المشترون من التواصل معك.' };
+  if (!isValidPhone(sellerPhone)) return { error: 'رقم الهاتف غير صالح.' };
   if (files.length > MAX_IMAGES) return { error: `الحد الأقصى ${MAX_IMAGES} صور لكل إعلان.` };
 
   // نتحقق من كل الصور أولاً، ثم نكتبها، حتى لا نترك ملفات يتيمة عند الفشل
@@ -83,7 +85,7 @@ export async function createListingAction(_prev: FormState, formData: FormData):
     city,
     images,
     sellerName,
-    sellerPhone: sellerPhone || null,
+    sellerPhone,
   });
 
   revalidatePath('/');
