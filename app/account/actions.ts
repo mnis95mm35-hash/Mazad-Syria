@@ -9,6 +9,7 @@ import { isLimited, recordEvent } from '@/lib/rate_limit';
 import { imagePathFromUrl } from '@/lib/supabase';
 import { removeImages } from '@/lib/listing_form';
 import { featurePrice } from '@/lib/site_config';
+import { listingLimitError } from '@/lib/limits';
 
 // يعيد الإعلان فقط إن كان ملكاً للمستخدم الحالي
 async function ownListing(formData: FormData) {
@@ -36,6 +37,9 @@ export async function deleteMyListingAction(formData: FormData): Promise<void> {
 export async function renewMyListingAction(formData: FormData): Promise<void> {
   const own = await ownListing(formData);
   if (!own || own.listing.status === 'blocked') return;
+  // التجديد يُعيد الإعلان فعّالاً، فإن لم يكن فعّالاً الآن نتحقق من حد الباقة
+  const expired = Boolean(own.listing.expiresAt && own.listing.expiresAt.getTime() <= Date.now());
+  if ((own.listing.status !== 'active' || expired) && (await listingLimitError(own.user.id))) return;
   await listingService.renew(own.listing.id);
   refresh();
 }
@@ -44,7 +48,9 @@ export async function renewMyListingAction(formData: FormData): Promise<void> {
 export async function toggleMyListingAction(formData: FormData): Promise<void> {
   const own = await ownListing(formData);
   if (!own || own.listing.status === 'blocked') return;
-  await listingService.setStatus(own.listing.id, own.listing.status === 'hidden' ? 'active' : 'hidden');
+  const showing = own.listing.status === 'hidden';
+  if (showing && (await listingLimitError(own.user.id))) return;
+  await listingService.setStatus(own.listing.id, showing ? 'active' : 'hidden');
   refresh();
 }
 

@@ -19,6 +19,7 @@ export default async function Navbar() {
           <Link href="/cars" className="hover:text-emerald-800">سيارات</Link>
           <Link href="/real-estate" className="hover:text-emerald-800">عقارات</Link>
           <Link href="/electronics" className="hover:text-emerald-800">إلكترونيات</Link>
+          <Link href="/dealers" className="hover:text-emerald-800">المعارض</Link>
           <Link href="/advertise" className="hover:text-emerald-800">أعلن معنا</Link>
         </nav>
 

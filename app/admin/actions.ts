@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { listingService } from '@/lib/listing_service';
 import { isLimited, recordEvent } from '@/lib/rate_limit';
 import { orders } from '@/lib/orders_service';
+import { dealers } from '@/lib/dealers_service';
 import { IMAGE_BUCKET, imagePathFromUrl, supabaseAdmin } from '@/lib/supabase';
 import { adminConfigured, checkPassword, endSession, isAdmin, startSession } from '@/lib/admin_auth';
 
@@ -103,5 +104,43 @@ export async function deleteListingAction(formData: FormData): Promise<void> {
   const paths = images.map(imagePathFromUrl).filter((p): p is string => p !== null);
   if (paths.length) await supabaseAdmin().storage.from(IMAGE_BUCKET).remove(paths);
   revalidatePath('/');
+  revalidatePath('/admin');
+}
+
+// ===== التجار والاشتراكات =====
+
+export async function activatePlanRequestAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get('id'));
+  if (!Number.isInteger(id)) return;
+  await dealers.activateRequest(id);
+  revalidatePath('/dealers');
+  revalidatePath('/admin');
+}
+
+export async function rejectPlanRequestAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get('id'));
+  if (!Number.isInteger(id)) return;
+  await dealers.rejectRequest(id);
+  revalidatePath('/admin');
+}
+
+export async function setDealerVerifiedAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get('id'));
+  if (!Number.isInteger(id)) return;
+  await dealers.setVerified(id, formData.get('verified') === '1');
+  revalidatePath('/dealers');
+  revalidatePath('/admin');
+}
+
+export async function setDealerStatusAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get('id'));
+  const status = String(formData.get('status'));
+  if (!Number.isInteger(id) || (status !== 'active' && status !== 'suspended')) return;
+  await dealers.setStatus(id, status);
+  revalidatePath('/dealers');
   revalidatePath('/admin');
 }

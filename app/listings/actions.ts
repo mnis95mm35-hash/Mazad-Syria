@@ -6,6 +6,7 @@ import { listingService } from '@/lib/listing_service';
 import { getCurrentUser } from '@/lib/supabase_auth';
 import { isLimited, recordEvent } from '@/lib/rate_limit';
 import { imagePathFromUrl } from '@/lib/supabase';
+import { listingLimitError } from '@/lib/limits';
 import { MAX_IMAGES, filesFrom, parseListingFields, prepareImages, removeImages, uploadImages } from '@/lib/listing_form';
 
 export type FormState = { error?: string };
@@ -31,6 +32,9 @@ export async function createListingAction(_prev: FormState, formData: FormData):
   if (await isLimited('post', POST_RULES)) {
     return { error: 'أرسلت عدداً كبيراً من الإعلانات في وقت قصير. حاول لاحقاً.' };
   }
+
+  const limitError = await listingLimitError(user.id);
+  if (limitError) return { error: limitError };
 
   const prepared = await prepareImages(files);
   if ('error' in prepared) return { error: prepared.error };

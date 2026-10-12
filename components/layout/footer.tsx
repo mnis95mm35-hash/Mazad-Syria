@@ -26,6 +26,8 @@ export default function Footer() {
           <p className="mb-3 font-bold text-white">للبائعين</p>
           <ul className="space-y-2 text-sm">
             <li><Link href="/listings/new" className="hover:text-amber-300">أضف إعلاناً</Link></li>
+            <li><Link href="/account/dealer" className="hover:text-amber-300">حساب تاجر / معرض</Link></li>
+            <li><Link href="/dealers" className="hover:text-amber-300">دليل المعارض</Link></li>
             <li><Link href="/advertise" className="hover:text-amber-300">الإعلانات المميزة</Link></li>
             <li>
               <a href={`https://wa.me/${SITE.whatsapp}`} className="hover:text-amber-300">تواصل عبر واتساب</a>

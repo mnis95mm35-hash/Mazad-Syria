@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { dealers } from '@/lib/dealers_service';
 import { listingService } from '@/lib/listing_service';
 import { CATEGORIES } from '@/lib/sample_data';
 import { SITE } from '@/lib/site_config';
@@ -10,6 +11,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [
     { url: `${SITE.url}/`, changeFrequency: 'hourly', priority: 1 },
     { url: `${SITE.url}/advertise`, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${SITE.url}/dealers`, changeFrequency: 'daily', priority: 0.6 },
     ...CATEGORIES.map((c) => ({
       url: `${SITE.url}${browsePath({ category: c.slug })}`,
       changeFrequency: 'daily' as const,
@@ -40,6 +42,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: 'weekly',
         priority: 0.7,
       });
+    }
+    for (const d of await dealers.listLive()) {
+      entries.push({ url: `${SITE.url}/dealer/${d.slug}`, changeFrequency: 'daily', priority: 0.6 });
     }
   } catch (e) {
     console.error('sitemap: failed to load listings', e);

@@ -41,13 +41,6 @@ export const PLANS: Plan[] = [
     period: 'لكل إعلان',
     features: ['كل مزايا الإعلان المميز', 'مدة أطول بسعر أوفر', 'مناسب للسيارات والعقارات'],
   },
-  {
-    id: 'business',
-    name: 'باقة المعارض والشركات',
-    price: '$49',
-    period: 'شهرياً',
-    features: ['إعلانات مميزة متعددة', 'صفحة خاصة بمعرضك', 'مساحة إعلانية بانر'],
-  },
 ];
 
 // خيارات تمييز الإعلان (أمثلة مبدئية: عدّل الأسعار حسب سوقك)
@@ -64,5 +57,50 @@ export function featurePrice(days: number): number | null {
 // رابط واتساب جاهز لإرسال إثبات الدفع لطلب تمييز
 export function featureRequestWhatsAppUrl(req: { id: number; listingId: number; days: number; amount: number }) {
   const text = `مرحباً، أرسلت طلب تمييز رقم ${req.id} للإعلان رقم ${req.listingId} لمدة ${req.days} يوماً بمبلغ $${req.amount}. هذا إثبات الدفع:`;
+  return `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(text)}`;
+}
+
+// ===== باقات التجار (أسعار مبدئية: عدّلها حسب سوقك) =====
+export type DealerPlanId = 'dealer' | 'dealer_pro';
+
+// الحد الأقصى للإعلانات الفعّالة لمن ليس لديه اشتراك تاجر
+export const FREE_LISTING_LIMIT = 5;
+
+export const DEALER_PLANS: Record<
+  DealerPlanId,
+  { name: string; monthly: number; limit: number; features: string[] }
+> = {
+  dealer: {
+    name: 'تاجر',
+    monthly: 10,
+    limit: 30,
+    features: ['حتى 30 إعلاناً فعّالاً', 'صفحة عامة باسم معرضك', 'شعار ووصف وعنوان وأرقام تواصل'],
+  },
+  dealer_pro: {
+    name: 'تاجر مميّز',
+    monthly: 25,
+    limit: 100,
+    features: ['حتى 100 إعلان فعّال', 'شارة "موثّق" بعد مراجعة الإدارة', 'كل مزايا باقة تاجر'],
+  },
+};
+
+// مدد الاشتراك: الاشتراك السنوي يُحسب بسعر 10 أشهر
+export const DEALER_TERMS = [
+  { months: 1, pay: 1, label: 'شهر' },
+  { months: 3, pay: 3, label: '3 أشهر' },
+  { months: 12, pay: 10, label: 'سنة (وفّر شهرين)' },
+] as const;
+
+export function isDealerPlan(v: unknown): v is DealerPlanId {
+  return v === 'dealer' || v === 'dealer_pro';
+}
+
+export function dealerPrice(plan: DealerPlanId, months: number): number | null {
+  const term = DEALER_TERMS.find((t) => t.months === months);
+  return term ? DEALER_PLANS[plan].monthly * term.pay : null;
+}
+
+export function planRequestWhatsAppUrl(req: { id: number; plan: DealerPlanId; months: number; amount: number }) {
+  const text = `مرحباً، أرسلت طلب اشتراك رقم ${req.id} في باقة ${DEALER_PLANS[req.plan].name} لمدة ${req.months} شهراً بمبلغ $${req.amount}. هذا إثبات الدفع:`;
   return `https://wa.me/${SITE.whatsapp}?text=${encodeURIComponent(text)}`;
 }

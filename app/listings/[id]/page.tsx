@@ -6,6 +6,7 @@ import MainLayout from '@/components/layout/main_layout';
 import ImageGallery from '@/components/listings/image_gallery';
 import { categoryInfo } from '@/components/listings/listing_card';
 import { listingService } from '@/lib/listing_service';
+import { dealers, liveOrNull } from '@/lib/dealers_service';
 import { toWhatsAppNumber } from '@/lib/phone';
 import ReportButton from '@/components/listings/report_button';
 import { getCurrentUser } from '@/lib/supabase_auth';
@@ -45,6 +46,9 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   if (!listing) notFound();
 
   const user = await getCurrentUser();
+  // إن كان البائع تاجراً باشتراك ساري نعرض رابط صفحته (فشل الجلب لا يكسر الصفحة)
+  const dealerRow = listing.userId ? await dealers.getByUser(listing.userId).catch(() => null) : null;
+  const dealer = liveOrNull(dealerRow);
   const isOwner = Boolean(user && listing.userId === user.id);
   const cat = categoryInfo(listing.category);
   const jsonLd = {
@@ -112,6 +116,11 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           <div className="mt-5 rounded-2xl bg-stone-50 p-4">
             <p className="text-sm text-gray-500">البائع</p>
             <p className="text-lg font-bold">{listing.sellerName}</p>
+            {dealer && (
+              <Link href={`/dealer/${dealer.slug}`} className="mt-2 inline-block text-sm font-bold text-emerald-800 hover:underline">
+                {dealer.verified ? '✔ ' : ''}{dealer.name} - كل إعلانات المعرض ←
+              </Link>
+            )}
           </div>
           {listing.sellerPhone && (
             <div className="mt-4 space-y-2">

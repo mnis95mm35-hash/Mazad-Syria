@@ -11,6 +11,7 @@ export type ListingFilters = {
   maxPrice?: number;
   subcategory?: string;
   area?: string;
+  userId?: string;
   // عند تصفية السعر أو ترتيبه نقارن داخل عملة واحدة (الافتراضي دولار)
   currency?: 'USD' | 'SYP';
   sort?: SortKey;
@@ -131,6 +132,7 @@ async function searchListings(filters: ListingFilters = {}): Promise<ListingsPag
   if (filters.subcategory) query = query.eq('subcategory', filters.subcategory);
   if (filters.city) query = query.eq('city', filters.city);
   if (filters.area) query = query.eq('area', filters.area);
+  if (filters.userId) query = query.eq('user_id', filters.userId);
   const priceMode =
     filters.minPrice !== undefined || filters.maxPrice !== undefined || filters.sort === 'price_asc' || filters.sort === 'price_desc';
   if (priceMode) query = query.eq('currency', filters.currency ?? 'USD');
@@ -189,6 +191,18 @@ async function getByOwner(userId: string): Promise<Listing[]> {
     .limit(200);
   if (error) throw new Error(`تعذّر جلب إعلاناتك: ${error.message}`);
   return (data as Row[]).map(fromRow);
+}
+
+// عدد إعلانات المستخدم الفعّالة وغير المنتهية (للتحقق من حد الباقة)
+async function countActiveByOwner(userId: string): Promise<number> {
+  const { count, error } = await supabaseAdmin()
+    .from('listings')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString());
+  if (error) throw new Error(`تعذّر عدّ إعلاناتك: ${error.message}`);
+  return count ?? 0;
 }
 
 async function updateListing(id: number, patch: ListingPatch): Promise<void> {
@@ -298,6 +312,7 @@ export const listingService = {
   getListing,
   getAllListings,
   getByOwner,
+  countActiveByOwner,
   updateListing,
   getSitemapEntries,
   getFacets,

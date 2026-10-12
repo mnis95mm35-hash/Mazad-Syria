@@ -6,6 +6,7 @@ import OwnerDeleteButton from '@/components/account/owner_delete_button';
 import { listingService } from '@/lib/listing_service';
 import { formatPrice } from '@/lib/format';
 import { orders } from '@/lib/orders_service';
+import { dealers, isLive, listingLimit } from '@/lib/dealers_service';
 import { getCurrentUser } from '@/lib/supabase_auth';
 import { FEATURE_OPTIONS, featureRequestWhatsAppUrl } from '@/lib/site_config';
 import { logoutAction } from '@/app/auth/actions';
@@ -19,8 +20,15 @@ export default async function AccountPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/account');
 
-  const [listings, requests] = await Promise.all([listingService.getByOwner(user.id), orders.listByUser(user.id)]);
+  const [listings, requests, dealer] = await Promise.all([
+    listingService.getByOwner(user.id),
+    orders.listByUser(user.id),
+    dealers.getByUser(user.id),
+  ]);
   const now = Date.now();
+  const limit = listingLimit(dealer);
+  const activeCount = listings.filter((l) => l.status === 'active' && !(l.expiresAt && l.expiresAt.getTime() <= now)).length;
+  const atLimit = activeCount >= limit;
   const pendingByListing = new Map(requests.filter((r) => r.status === 'pending').map((r) => [r.listingId, r]));
 
   return (
@@ -40,6 +48,16 @@ export default async function AccountPage() {
             </button>
           </form>
         </div>
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 text-sm ring-1 ring-black/5">
+        <p>
+          الإعلانات الفعّالة: <b>{activeCount}</b> من <b>{limit}</b>
+          {atLimit && <span className="mr-2 font-bold text-red-700">وصلت للحد الأقصى</span>}
+        </p>
+        <Link href="/account/dealer" className="font-bold text-emerald-800 hover:underline">
+          {dealer ? (isLive(dealer) ? 'حساب التاجر' : 'تجديد اشتراك التاجر') : 'ارفع الحد: سجّل كتاجر ←'}
+        </Link>
       </div>
 
       {listings.length === 0 ? (

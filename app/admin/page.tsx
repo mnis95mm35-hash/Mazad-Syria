@@ -8,8 +8,14 @@ import { adminConfigured, isAdmin } from '@/lib/admin_auth';
 import { listingService } from '@/lib/listing_service';
 import { formatPrice } from '@/lib/format';
 import { orders } from '@/lib/orders_service';
+import { dealers, isLive } from '@/lib/dealers_service';
+import { DEALER_PLANS } from '@/lib/site_config';
 import { reports } from '@/lib/reports_service';
 import {
+  activatePlanRequestAction,
+  rejectPlanRequestAction,
+  setDealerStatusAction,
+  setDealerVerifiedAction,
   activateRequestAction,
   featureListingAction,
   logoutAction,
@@ -50,11 +56,14 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
     );
   }
 
-  const [listings, requests, reportCounts] = await Promise.all([
+  const [listings, requests, reportCounts, planRequests, allDealers] = await Promise.all([
     listingService.getAllListings(),
     orders.listRecent(),
     reports.countsByListing(),
+    dealers.listRecentRequests(),
+    dealers.listAll(),
   ]);
+  const pendingPlans = planRequests.filter((r) => r.status === 'pending');
   const pendingRequests = requests.filter((r) => r.status === 'pending');
   const now = Date.now();
   const isExpired = (l: (typeof listings)[number]) => Boolean(l.expiresAt && l.expiresAt.getTime() <= now);
@@ -113,6 +122,93 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
                     <input type="hidden" name="id" value={r.id} />
                     <button type="submit" className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-bold hover:bg-stone-200">
                       رفض
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-8">
+        <h2 className="mb-3 text-xl font-extrabold">طلبات اشتراك التجار المعلقة ({pendingPlans.length})</h2>
+        {pendingPlans.length === 0 ? (
+          <p className="rounded-2xl bg-white p-5 text-sm text-gray-500 ring-1 ring-black/5">لا توجد طلبات معلقة.</p>
+        ) : (
+          <div className="space-y-3">
+            {pendingPlans.map((r) => (
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 ring-1 ring-black/5">
+                <div className="text-sm">
+                  <p className="font-bold">
+                    طلب #{r.id} · {r.dealerName ?? `تاجر #${r.dealerId}`}
+                  </p>
+                  <p className="text-gray-500">
+                    {DEALER_PLANS[r.plan].name} · {r.months} شهراً · ${r.amount} · {fmtDate(r.createdAt)}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <form action={activatePlanRequestAction}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <button type="submit" className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-bold text-emerald-950 hover:bg-amber-300">
+                      تم الدفع: فعّل الاشتراك
+                    </button>
+                  </form>
+                  <form action={rejectPlanRequestAction}>
+                    <input type="hidden" name="id" value={r.id} />
+                    <button type="submit" className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-bold hover:bg-stone-200">
+                      رفض
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-8">
+        <h2 className="mb-3 text-xl font-extrabold">التجار ({allDealers.length})</h2>
+        {allDealers.length === 0 ? (
+          <p className="rounded-2xl bg-white p-5 text-sm text-gray-500 ring-1 ring-black/5">لا يوجد تجار بعد.</p>
+        ) : (
+          <div className="space-y-3">
+            {allDealers.map((d) => (
+              <div key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 ring-1 ring-black/5">
+                <div className="text-sm">
+                  <p className="font-bold">
+                    {isLive(d) ? (
+                      <Link href={`/dealer/${d.slug}`} className="text-emerald-900 hover:underline">{d.name}</Link>
+                    ) : (
+                      d.name
+                    )}{' '}
+                    {d.verified && <span className="text-sky-700">✔ موثّق</span>}
+                  </p>
+                  <p className="text-gray-500">
+                    {DEALER_PLANS[d.plan].name} ·{' '}
+                    {d.status === 'suspended'
+                      ? 'موقوف'
+                      : isLive(d)
+                        ? `ساري حتى ${fmtDate(d.planUntil!)}`
+                        : d.status === 'pending'
+                          ? 'بانتظار الدفع'
+                          : 'منتهي'}
+                    {d.phone ? ` · ${d.phone}` : ''}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <form action={setDealerVerifiedAction}>
+                    <input type="hidden" name="id" value={d.id} />
+                    <input type="hidden" name="verified" value={d.verified ? '0' : '1'} />
+                    <button type="submit" className="rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-bold text-sky-800 hover:bg-sky-100">
+                      {d.verified ? 'إزالة التوثيق' : 'توثيق'}
+                    </button>
+                  </form>
+                  <form action={setDealerStatusAction}>
+                    <input type="hidden" name="id" value={d.id} />
+                    <input type="hidden" name="status" value={d.status === 'suspended' ? 'active' : 'suspended'} />
+                    <button type="submit" className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-bold hover:bg-stone-200">
+                      {d.status === 'suspended' ? 'إعادة التفعيل' : 'إيقاف'}
                     </button>
                   </form>
                 </div>

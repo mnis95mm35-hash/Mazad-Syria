@@ -1,5 +1,6 @@
 import MainLayout from '@/components/layout/main_layout';
-import { PLANS, SITE } from '@/lib/site_config';
+import Link from 'next/link';
+import { DEALER_PLANS, FREE_LISTING_LIMIT, PLANS, SITE } from '@/lib/site_config';
 
 export const metadata = { title: 'أعلن معنا | مزاد سوريا' };
 
@@ -15,7 +16,7 @@ export default function AdvertisePage() {
           الإعلانات المميزة تظهر في أعلى الصفحة الرئيسية وفي مقدمة نتائج البحث، فتصل لمشترين أكثر.
         </p>
 
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {PLANS.map((p) => (
             <div
               key={p.id}
@@ -52,6 +53,28 @@ export default function AdvertisePage() {
         <p className="mt-8 text-sm text-gray-500">
           بعد التواصل معنا نؤكد الدفع ثم نفعّل التمييز على إعلانك.
         </p>
+
+        <h2 className="mt-14 text-2xl font-black text-emerald-950">للمعارض والتجار</h2>
+        <p className="mt-2 max-w-2xl text-gray-600">
+          الحساب العادي حتى {FREE_LISTING_LIMIT} إعلانات فعّالة. اشتراك التاجر يرفع الحد ويمنحك صفحة عامة باسم معرضك.
+        </p>
+        <div className="mt-6 grid gap-5 sm:grid-cols-2">
+          {Object.values(DEALER_PLANS).map((p) => (
+            <div key={p.name} className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-black/5">
+              <h3 className="text-lg font-extrabold">{p.name}</h3>
+              <p className="mt-3 text-4xl font-black text-emerald-800">${p.monthly}</p>
+              <p className="text-sm text-gray-500">شهرياً</p>
+              <ul className="mt-5 flex-1 space-y-2 text-sm text-gray-700">
+                {p.features.map((f) => (
+                  <li key={f}>✓ {f}</li>
+                ))}
+              </ul>
+              <Link href="/account/dealer" className="mt-6 rounded-xl bg-emerald-900 py-3 text-center font-bold text-white hover:bg-emerald-800">
+                سجّل كتاجر
+              </Link>
+            </div>
+          ))}
+        </div>
       </div>
     </MainLayout>
   );
