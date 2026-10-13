@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   title: 'مزاد سوريا | إعلانات مبوّبة للبيع والشراء',
   description: 'بيع واشترِ السيارات والعقارات والإلكترونيات والمزيد في جميع المحافظات السورية.',
   openGraph: { siteName: SITE.name, locale: 'ar_SY', type: 'website' },
+  // رمز التحقق من Google Search Console (اختياري): يُضبط في متغيرات البيئة
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } }
+    : {}),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
