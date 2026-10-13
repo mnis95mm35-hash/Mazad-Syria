@@ -36,7 +36,8 @@ export async function deleteMyListingAction(formData: FormData): Promise<void> {
 
 export async function renewMyListingAction(formData: FormData): Promise<void> {
   const own = await ownListing(formData);
-  if (!own || own.listing.status === 'blocked') return;
+  // المحظور والمنتظر للمراجعة لا يغيّر صاحبه حالتهما (وإلا تجاوز المراجعة)
+  if (!own || own.listing.status === 'blocked' || own.listing.status === 'pending') return;
   // التجديد يُعيد الإعلان فعّالاً، فإن لم يكن فعّالاً الآن نتحقق من حد الباقة
   const expired = Boolean(own.listing.expiresAt && own.listing.expiresAt.getTime() <= Date.now());
   if ((own.listing.status !== 'active' || expired) && (await listingLimitError(own.user.id))) return;
@@ -47,7 +48,7 @@ export async function renewMyListingAction(formData: FormData): Promise<void> {
 // إخفاء/إظهار من صاحب الإعلان (المحظور من الإدارة لا يستطيع إظهاره)
 export async function toggleMyListingAction(formData: FormData): Promise<void> {
   const own = await ownListing(formData);
-  if (!own || own.listing.status === 'blocked') return;
+  if (!own || own.listing.status === 'blocked' || own.listing.status === 'pending') return;
   const showing = own.listing.status === 'hidden';
   if (showing && (await listingLimitError(own.user.id))) return;
   await listingService.setStatus(own.listing.id, showing ? 'active' : 'hidden');

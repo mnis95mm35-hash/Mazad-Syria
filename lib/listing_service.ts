@@ -41,9 +41,11 @@ export type NewListingInput = {
   subcategory: string | null;
   area: string | null;
   userId?: string | null;
+  // الإعلانات الجديدة تبدأ pending إلا لمن تثق به الإدارة
+  status?: 'pending' | 'active';
 };
 
-export type ListingPatch = Omit<NewListingInput, 'userId'>;
+export type ListingPatch = Omit<NewListingInput, 'userId' | 'status'> & { status?: 'pending' | 'active' | 'hidden' };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const DEFAULT_PAGE_SIZE = 24;
@@ -62,7 +64,7 @@ type Row = {
   is_featured: boolean;
   featured_until: string | null;
   created_at: string;
-  status: 'active' | 'hidden' | 'blocked';
+  status: 'pending' | 'active' | 'hidden' | 'blocked';
   expires_at: string | null;
   user_id: string | null;
   currency: 'USD' | 'SYP';
@@ -193,16 +195,39 @@ async function getByOwner(userId: string): Promise<Listing[]> {
   return (data as Row[]).map(fromRow);
 }
 
-// عدد إعلانات المستخدم الفعّالة وغير المنتهية (للتحقق من حد الباقة)
+// عدد إعلانات المستخدم الفعّالة وقيد المراجعة وغير المنتهية (للتحقق من حد الباقة)
 async function countActiveByOwner(userId: string): Promise<number> {
   const { count, error } = await supabaseAdmin()
     .from('listings')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('status', 'active')
+    .in('status', ['active', 'pending'])
     .gt('expires_at', new Date().toISOString());
   if (error) throw new Error(`تعذّر عدّ إعلاناتك: ${error.message}`);
   return count ?? 0;
+}
+
+// سجلّ المستخدم لتحديد الثقة: عدد إعلاناته المقبولة وعدد المحظورة
+async function ownerHistory(userId: string): Promise<{ good: number; blocked: number }> {
+  const { data, error } = await supabaseAdmin().from('listings').select('status').eq('user_id', userId).limit(500);
+  if (error) throw new Error(error.message);
+  const rows = data as { status: string }[];
+  return {
+    good: rows.filter((r) => r.status === 'active' || r.status === 'hidden').length,
+    blocked: rows.filter((r) => r.status === 'blocked').length,
+  };
+}
+
+// الإعلانات التي تنتظر المراجعة (للوحة الإدارة)
+async function getPending(): Promise<Listing[]> {
+  const { data, error } = await supabaseAdmin()
+    .from('listings')
+    .select('*')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if (error) throw new Error(error.message);
+  return (data as Row[]).map(fromRow);
 }
 
 async function updateListing(id: number, patch: ListingPatch): Promise<void> {
@@ -220,6 +245,7 @@ async function updateListing(id: number, patch: ListingPatch): Promise<void> {
       currency: patch.currency,
       subcategory: patch.subcategory,
       area: patch.area,
+      ...(patch.status ? { status: patch.status } : {}),
     })
     .eq('id', id);
   if (error) throw new Error(`تعذّر تحديث الإعلان: ${error.message}`);
@@ -266,6 +292,7 @@ async function createListing(input: NewListingInput): Promise<number> {
       subcategory: input.subcategory,
       area: input.area,
       user_id: input.userId ?? null,
+      status: input.status ?? 'active',
       expires_at: new Date(Date.now() + LISTING_LIFETIME_DAYS * DAY_MS).toISOString(),
     })
     .select('id')
@@ -286,7 +313,7 @@ async function setFeatured(id: number, days: number | null): Promise<void> {
   if (error) throw new Error(`تعذّر تحديث التمييز: ${error.message}`);
 }
 
-async function setStatus(id: number, status: 'active' | 'hidden' | 'blocked'): Promise<void> {
+async function setStatus(id: number, status: 'pending' | 'active' | 'hidden' | 'blocked'): Promise<void> {
   const { error } = await supabaseAdmin().from('listings').update({ status }).eq('id', id);
   if (error) throw new Error(`تعذّر تحديث الحالة: ${error.message}`);
 }
@@ -313,6 +340,8 @@ export const listingService = {
   getAllListings,
   getByOwner,
   countActiveByOwner,
+  ownerHistory,
+  getPending,
   updateListing,
   getSitemapEntries,
   getFacets,

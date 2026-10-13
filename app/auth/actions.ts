@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { supabaseAuth, authConfigured } from '@/lib/supabase_auth';
 import { isLimited, recordEvent } from '@/lib/rate_limit';
+import { CAPTCHA_ERROR, verifyTurnstile } from '@/lib/turnstile';
 
 export type AuthState = { error?: string; message?: string };
 
@@ -25,6 +26,7 @@ export async function registerAction(_prev: AuthState, fd: FormData): Promise<Au
   if (await isLimited('register', [{ max: 5, windowMs: 60 * 60 * 1000 }])) {
     return { error: 'محاولات كثيرة. حاول لاحقاً.' };
   }
+  if (!(await verifyTurnstile(fd))) return { error: CAPTCHA_ERROR };
   await recordEvent('register');
 
   const sb = await supabaseAuth();

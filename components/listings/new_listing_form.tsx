@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useState } from 'react';
+import Turnstile from '@/components/security/turnstile';
 import { createListingAction, updateListingAction, type FormState } from '@/app/listings/actions';
 import { CATEGORIES, CITIES, type Listing } from '@/lib/sample_data';
 import { CURRENCIES, areasOf, subsOf } from '@/lib/taxonomy';
@@ -8,7 +9,7 @@ import { CURRENCIES, areasOf, subsOf } from '@/lib/taxonomy';
 const input = 'w-full border border-gray-300 rounded-lg px-4 py-2';
 
 // نموذج واحد للإنشاء والتعديل: عند تمرير listing يعمل كنموذج تعديل
-export default function ListingForm({ listing }: { listing?: Listing }) {
+export default function ListingForm({ listing, captchaSiteKey = null }: { listing?: Listing; captchaSiteKey?: string | null }) {
   const editing = Boolean(listing);
   const [category, setCategory] = useState(listing?.category ?? '');
   const [city, setCity] = useState(listing?.city ?? '');
@@ -155,6 +156,7 @@ export default function ListingForm({ listing }: { listing?: Listing }) {
         </label>
       </div>
 
+      {!editing && <Turnstile siteKey={captchaSiteKey} resetKey={state} />}
       <button
         type="submit"
         disabled={pending}

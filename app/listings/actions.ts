@@ -7,6 +7,8 @@ import { getCurrentUser } from '@/lib/supabase_auth';
 import { isLimited, recordEvent } from '@/lib/rate_limit';
 import { imagePathFromUrl } from '@/lib/supabase';
 import { listingLimitError } from '@/lib/limits';
+import { isTrustedOwner } from '@/lib/trust';
+import { CAPTCHA_ERROR, verifyTurnstile } from '@/lib/turnstile';
 import { MAX_IMAGES, filesFrom, parseListingFields, prepareImages, removeImages, uploadImages } from '@/lib/listing_form';
 
 export type FormState = { error?: string };
@@ -26,6 +28,8 @@ export async function createListingAction(_prev: FormState, formData: FormData):
   const parsed = parseListingFields(formData);
   if ('error' in parsed) return { error: parsed.error };
 
+  if (!(await verifyTurnstile(formData))) return { error: CAPTCHA_ERROR };
+
   const files = filesFrom(formData);
   if (files.length > MAX_IMAGES) return { error: `الحد الأقصى ${MAX_IMAGES} صور لكل إعلان.` };
 
@@ -43,9 +47,16 @@ export async function createListingAction(_prev: FormState, formData: FormData):
   const uploaded = await uploadImages(prepared.buffers);
   if ('error' in uploaded) return { error: uploaded.error };
 
+  // الموثوقون ينشرون فوراً، والبقية ينتظرون مراجعة الإدارة
+  const trusted = await isTrustedOwner(user.id).catch(() => false);
   let id: number;
   try {
-    id = await listingService.createListing({ ...parsed.fields, images: uploaded.urls, userId: user.id });
+    id = await listingService.createListing({
+      ...parsed.fields,
+      images: uploaded.urls,
+      userId: user.id,
+      status: trusted ? 'active' : 'pending',
+    });
   } catch (e) {
     // لا نترك صوراً يتيمة إن فشل حفظ الإعلان
     await removeImages(uploaded.names);
@@ -54,7 +65,8 @@ export async function createListingAction(_prev: FormState, formData: FormData):
   }
 
   revalidatePath('/');
-  redirect(`/listings/${id}`);
+  // الإعلان قيد المراجعة غير ظاهر للعامة، فنوجّه صاحبه لصفحة حسابه
+  redirect(trusted ? `/listings/${id}` : '/account?submitted=1');
 }
 
 export async function updateListingAction(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -83,8 +95,15 @@ export async function updateListingAction(_prev: FormState, formData: FormData):
   const uploaded = await uploadImages(prepared.buffers);
   if ('error' in uploaded) return { error: uploaded.error };
 
+  // غير الموثوق: أي تعديل على إعلان منشور أو مخفي يعيده للمراجعة، حتى لا يُستبدل محتواه بعد الموافقة
+  const trusted = await isTrustedOwner(user.id).catch(() => false);
+  const backToReview = !trusted && (existing.status === 'active' || existing.status === 'hidden');
   try {
-    await listingService.updateListing(id, { ...parsed.fields, images: [...kept, ...uploaded.urls] });
+    await listingService.updateListing(id, {
+      ...parsed.fields,
+      images: [...kept, ...uploaded.urls],
+      ...(backToReview ? { status: 'pending' as const } : {}),
+    });
   } catch (e) {
     await removeImages(uploaded.names);
     console.error('updateListing failed', e);

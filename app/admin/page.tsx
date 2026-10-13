@@ -12,6 +12,8 @@ import { dealers, isLive } from '@/lib/dealers_service';
 import { DEALER_PLANS } from '@/lib/site_config';
 import { reports } from '@/lib/reports_service';
 import {
+  approveListingAction,
+  rejectListingAction,
   activatePlanRequestAction,
   rejectPlanRequestAction,
   setDealerStatusAction,
@@ -63,6 +65,7 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
     dealers.listRecentRequests(),
     dealers.listAll(),
   ]);
+  const pendingListings = listings.filter((l) => l.status === 'pending');
   const pendingPlans = planRequests.filter((r) => r.status === 'pending');
   const pendingRequests = requests.filter((r) => r.status === 'pending');
   const now = Date.now();
@@ -94,6 +97,52 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
           <p className="text-3xl font-black">{listings.length - featuredCount}</p>
         </div>
       </div>
+
+      <section className="mt-8">
+        <h2 className="mb-3 text-xl font-extrabold">إعلانات بانتظار المراجعة ({pendingListings.length})</h2>
+        {pendingListings.length === 0 ? (
+          <p className="rounded-2xl bg-white p-5 text-sm text-gray-500 ring-1 ring-black/5">لا توجد إعلانات بانتظار المراجعة.</p>
+        ) : (
+          <div className="space-y-3">
+            {pendingListings.map((l) => (
+              <div key={l.id} className="rounded-2xl bg-white p-4 ring-1 ring-black/5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex gap-3">
+                    {l.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={l.imageUrl} alt="" className="h-20 w-20 rounded-xl object-cover" />
+                    )}
+                    <div className="text-sm">
+                      <p className="font-bold">
+                        #{l.id} · {l.title} · {formatPrice(l.price, l.currency)}
+                      </p>
+                      <p className="text-gray-500">
+                        {categoryInfo(l.category).label} · {l.city} · {l.sellerName}
+                        {l.sellerPhone ? ` · ${l.sellerPhone}` : ''} · {fmtDate(l.createdAt)}
+                      </p>
+                      {l.description && <p className="mt-1 line-clamp-3 max-w-2xl text-gray-700">{l.description}</p>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <form action={approveListingAction}>
+                      <input type="hidden" name="id" value={l.id} />
+                      <button type="submit" className="rounded-lg bg-emerald-700 px-4 py-1.5 text-xs font-bold text-white hover:bg-emerald-800">
+                        قبول ونشر
+                      </button>
+                    </form>
+                    <form action={rejectListingAction}>
+                      <input type="hidden" name="id" value={l.id} />
+                      <button type="submit" className="rounded-lg bg-red-50 px-4 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100">
+                        رفض
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="mt-8">
         <h2 className="mb-3 text-xl font-extrabold">طلبات التمييز المعلقة ({pendingRequests.length})</h2>
@@ -253,6 +302,9 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
                     <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-gray-600">عادي</span>
                   )}
                   <div className="mt-2 flex flex-wrap gap-1 text-xs">
+                    {l.status === 'pending' && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-800">بانتظار المراجعة</span>
+                    )}
                     {l.status === 'blocked' && (
                       <span className="rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700">محظور</span>
                     )}

@@ -12,7 +12,7 @@ export type Listing = {
   isFeatured?: boolean;
   featuredUntil?: Date | null;
   images?: string[];
-  status?: 'active' | 'hidden' | 'blocked';
+  status?: 'pending' | 'active' | 'hidden' | 'blocked';
   userId?: string | null;
   currency?: 'USD' | 'SYP';
   subcategory?: string | null;

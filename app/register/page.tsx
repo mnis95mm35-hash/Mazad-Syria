@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import MainLayout from '@/components/layout/main_layout';
 import AuthForm from '@/components/auth/auth_form';
 import { getCurrentUser } from '@/lib/supabase_auth';
+import { turnstileSiteKey } from '@/lib/turnstile';
 
 export const metadata: Metadata = {
   title: 'إنشاء حساب',
@@ -15,7 +16,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   const safe = next && next.startsWith('/') && !next.startsWith('//') ? next : undefined;
   return (
     <MainLayout>
-      <AuthForm mode="register" next={safe} />
+      <AuthForm mode="register" next={safe} captchaSiteKey={turnstileSiteKey()} />
     </MainLayout>
   );
 }

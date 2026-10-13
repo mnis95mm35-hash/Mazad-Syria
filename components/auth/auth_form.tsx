@@ -2,11 +2,20 @@
 
 import Link from 'next/link';
 import { useActionState } from 'react';
+import Turnstile from '@/components/security/turnstile';
 import { loginAction, registerAction, type AuthState } from '@/app/auth/actions';
 
 const input = 'w-full rounded-lg border border-gray-300 px-4 py-2';
 
-export default function AuthForm({ mode, next }: { mode: 'login' | 'register'; next?: string }) {
+export default function AuthForm({
+  mode,
+  next,
+  captchaSiteKey = null,
+}: {
+  mode: 'login' | 'register';
+  next?: string;
+  captchaSiteKey?: string | null;
+}) {
   const isLogin = mode === 'login';
   const [state, action, pending] = useActionState<AuthState, FormData>(isLogin ? loginAction : registerAction, {});
   const nextQs = next ? `?next=${encodeURIComponent(next)}` : '';
@@ -38,6 +47,7 @@ export default function AuthForm({ mode, next }: { mode: 'login' | 'register'; n
         />
         {!isLogin && <span className="mt-1 block text-xs text-gray-500">8 أحرف على الأقل</span>}
       </label>
+      {!isLogin && <Turnstile siteKey={captchaSiteKey} resetKey={state} />}
       <button
         type="submit"
         disabled={pending}

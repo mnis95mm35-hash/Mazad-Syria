@@ -144,3 +144,21 @@ export async function setDealerStatusAction(formData: FormData): Promise<void> {
   revalidatePath('/dealers');
   revalidatePath('/admin');
 }
+
+// مراجعة الإعلانات الجديدة: القبول يفعّل الإعلان ويبدأ مدته من الآن، والرفض يحظره
+export async function approveListingAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get('id'));
+  if (!Number.isInteger(id)) return;
+  await listingService.renew(id);
+  revalidatePath('/');
+  revalidatePath('/admin');
+}
+
+export async function rejectListingAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get('id'));
+  if (!Number.isInteger(id)) return;
+  await listingService.setStatus(id, 'blocked');
+  revalidatePath('/admin');
+}

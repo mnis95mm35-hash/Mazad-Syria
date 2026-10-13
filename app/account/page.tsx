@@ -16,7 +16,8 @@ export const metadata: Metadata = { title: 'حسابي', robots: { index: false 
 
 const fmt = (d: Date) => new Date(d).toLocaleDateString('en-GB');
 
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ submitted?: string }> }) {
+  const { submitted } = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/account');
 
@@ -27,7 +28,7 @@ export default async function AccountPage() {
   ]);
   const now = Date.now();
   const limit = listingLimit(dealer);
-  const activeCount = listings.filter((l) => l.status === 'active' && !(l.expiresAt && l.expiresAt.getTime() <= now)).length;
+  const activeCount = listings.filter((l) => (l.status === 'active' || l.status === 'pending') && !(l.expiresAt && l.expiresAt.getTime() <= now)).length;
   const atLimit = activeCount >= limit;
   const pendingByListing = new Map(requests.filter((r) => r.status === 'pending').map((r) => [r.listingId, r]));
 
@@ -49,6 +50,12 @@ export default async function AccountPage() {
           </form>
         </div>
       </div>
+
+      {submitted && (
+        <p className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-900">
+          تم استلام إعلانك وهو قيد المراجعة. سيظهر للعامة بعد موافقة الإدارة، وغالباً خلال ساعات.
+        </p>
+      )}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 text-sm ring-1 ring-black/5">
         <p>
@@ -87,6 +94,7 @@ export default async function AccountPage() {
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
                         {l.status === 'blocked' && <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">محظور من الإدارة</span>}
+                        {l.status === 'pending' && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-800">قيد المراجعة</span>}
                         {l.status === 'hidden' && <span className="rounded-full bg-stone-100 px-2.5 py-1 text-gray-700">مخفي</span>}
                         {expired && <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">منتهٍ</span>}
                         {l.status === 'active' && !expired && (
@@ -109,6 +117,7 @@ export default async function AccountPage() {
                         <Link href={`/listings/${l.id}/edit`} className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-bold hover:bg-stone-200">
                           تعديل
                         </Link>
+                        {l.status !== 'pending' && (<>
                         <form action={renewMyListingAction}>
                           <input type="hidden" name="id" value={l.id} />
                           <button type="submit" className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100">
@@ -121,6 +130,7 @@ export default async function AccountPage() {
                             {l.status === 'hidden' ? 'إظهار' : 'إخفاء'}
                           </button>
                         </form>
+                        </>)}
                       </>
                     )}
                     <OwnerDeleteButton id={l.id} title={l.title} />
