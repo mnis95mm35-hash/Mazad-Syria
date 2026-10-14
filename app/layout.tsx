@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className={`${cairo.className} antialiased bg-stone-50 text-gray-900`}>
         <div aria-hidden="true" className="m-progress" />
         <MotionFX />

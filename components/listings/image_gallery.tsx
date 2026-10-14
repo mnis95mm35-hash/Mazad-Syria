@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { thumbUrl } from '@/lib/images';
 
 export default function ImageGallery({
   images,
@@ -25,7 +26,13 @@ export default function ImageGallery({
     <div>
       <div className="relative bg-stone-100">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={images[active]} alt={alt} className="h-80 w-full object-contain md:h-[28rem]" />
+        <img
+          src={images[active]}
+          alt={alt}
+          fetchPriority={active === 0 ? 'high' : 'auto'}
+          decoding="async"
+          className="h-80 w-full object-contain md:h-[28rem]"
+        />
         {images.length > 1 && (
           <span className="absolute left-3 top-3 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white">
             {active + 1} / {images.length}
@@ -45,7 +52,7 @@ export default function ImageGallery({
               aria-label={`عرض الصورة ${i + 1}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="h-full w-full object-cover" />
+              <img src={thumbUrl(src) ?? src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
             </button>
           ))}
         </div>

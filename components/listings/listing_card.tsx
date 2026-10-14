@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { CATEGORIES, type Listing } from '@/lib/sample_data';
 import { formatPrice } from '@/lib/format';
+import { thumbUrl } from '@/lib/images';
 
 export function categoryInfo(slug: string) {
   return CATEGORIES.find((c) => c.slug === slug) ?? { slug, label: slug, icon: '📦' };
@@ -30,9 +31,11 @@ export default function ListingCard({ listing }: { listing: Listing }) {
       {cover ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={cover}
+          src={thumbUrl(cover) ?? cover}
           alt={listing.title}
-          className="h-44 w-full object-cover transition duration-300 group-hover:scale-105"
+          loading="lazy"
+          decoding="async"
+          className="h-44 w-full bg-stone-100 object-cover transition duration-300 group-hover:scale-105"
         />
       ) : (
         <div className="flex h-44 items-center justify-center bg-gradient-to-br from-emerald-100 via-emerald-50 to-amber-50 text-6xl">

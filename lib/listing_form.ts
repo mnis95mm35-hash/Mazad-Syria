@@ -74,8 +74,9 @@ function detectImageExt(buf: Buffer): 'jpg' | 'png' | 'webp' | null {
 }
 
 // تحقق + إعادة ترميز: تصغير إلى 1600px وتحويل إلى WEBP، وهذا يحذف بيانات EXIF (ومنها GPS)
-export async function prepareImages(files: File[]): Promise<{ error: string } | { buffers: Buffer[] }> {
+export async function prepareImages(files: File[]): Promise<{ error: string } | { buffers: Buffer[]; thumbs: Buffer[] }> {
   const buffers: Buffer[] = [];
+  const thumbs: Buffer[] = [];
   for (const file of files) {
     if (file.size > MAX_IMAGE_BYTES) return { error: 'حجم إحدى الصور كبير (الحد الأقصى 3 ميغابايت للصورة).' };
     const raw = Buffer.from(await file.arrayBuffer());
@@ -88,31 +89,52 @@ export async function prepareImages(files: File[]): Promise<{ error: string } | 
           .webp({ quality: 80 })
           .toBuffer(),
       );
+      // نسخة مصغّرة (480px) لبطاقات القوائم: أخف بكثير على الموبايل
+      thumbs.push(
+        await sharp(raw)
+          .rotate()
+          .resize({ width: 480, height: 480, fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 72 })
+          .toBuffer(),
+      );
     } catch {
       return { error: 'تعذّرت معالجة إحدى الصور. جرّب صورة أخرى.' };
     }
   }
-  return { buffers };
+  return { buffers, thumbs };
 }
 
-// يرفع الصور؛ عند أي فشل يحذف ما رُفع ويعيد خطأ
-export async function uploadImages(buffers: Buffer[]): Promise<{ error: string } | { urls: string[]; names: string[] }> {
+// يرفع الصور؛ عند أي فشل يحذف ما رُفع ويعيد خطأ.
+// مع thumbs: تُرفع نسختان لكل صورة (-l و -s)، والاسم الذي يُعاد هو اسم الكبيرة.
+export async function uploadImages(
+  buffers: Buffer[],
+  thumbs?: Buffer[],
+): Promise<{ error: string } | { urls: string[]; names: string[] }> {
   const storage = supabaseAdmin().storage.from(IMAGE_BUCKET);
   const urls: string[] = [];
   const names: string[] = [];
-  for (const buf of buffers) {
-    const name = `${randomUUID()}.webp`;
-    const { error } = await storage.upload(name, buf, { contentType: 'image/webp', cacheControl: '31536000' });
-    if (error) {
-      if (names.length) await storage.remove(names);
-      return { error: 'تعذّر رفع الصور، حاول مرة أخرى.' };
-    }
+  const fail = async () => {
+    await removeImages(names);
+    return { error: 'تعذّر رفع الصور، حاول مرة أخرى.' } as const;
+  };
+  for (let i = 0; i < buffers.length; i++) {
+    const base = randomUUID();
+    const name = thumbs ? `${base}-l.webp` : `${base}.webp`;
+    const { error } = await storage.upload(name, buffers[i], { contentType: 'image/webp', cacheControl: '31536000' });
+    if (error) return fail();
     names.push(name);
+    if (thumbs) {
+      const t = await storage.upload(`${base}-s.webp`, thumbs[i], { contentType: 'image/webp', cacheControl: '31536000' });
+      // فشل المصغّرة لا يكسر الإعلان، لكن الاسم -l يفترض وجودها، فنتراجع بأمان
+      if (t.error) return fail();
+    }
     urls.push(publicImageUrl(name));
   }
   return { urls, names };
 }
 
+// يحذف الصور مع نسخها المصغّرة (-s) إن وُجدت
 export async function removeImages(names: string[]) {
-  if (names.length) await supabaseAdmin().storage.from(IMAGE_BUCKET).remove(names);
+  const all = names.flatMap((n) => (/-l\.webp$/.test(n) ? [n, n.replace(/-l\.webp$/, '-s.webp')] : [n]));
+  if (all.length) await supabaseAdmin().storage.from(IMAGE_BUCKET).remove(all);
 }

@@ -44,7 +44,7 @@ export async function createListingAction(_prev: FormState, formData: FormData):
   if ('error' in prepared) return { error: prepared.error };
 
   await recordEvent('post');
-  const uploaded = await uploadImages(prepared.buffers);
+  const uploaded = await uploadImages(prepared.buffers, prepared.thumbs);
   if ('error' in uploaded) return { error: uploaded.error };
 
   // الموثوقون ينشرون فوراً، والبقية ينتظرون مراجعة الإدارة
@@ -92,7 +92,7 @@ export async function updateListingAction(_prev: FormState, formData: FormData):
 
   const prepared = await prepareImages(files);
   if ('error' in prepared) return { error: prepared.error };
-  const uploaded = await uploadImages(prepared.buffers);
+  const uploaded = await uploadImages(prepared.buffers, prepared.thumbs);
   if ('error' in uploaded) return { error: uploaded.error };
 
   // غير الموثوق: أي تعديل على إعلان منشور أو مخفي يعيده للمراجعة، حتى لا يُستبدل محتواه بعد الموافقة

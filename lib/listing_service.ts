@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
 import type { Listing } from '@/lib/sample_data';
 
@@ -334,6 +335,9 @@ async function deleteListing(id: number): Promise<string[]> {
   return (data?.[0]?.images as string[] | undefined) ?? [];
 }
 
+// الواجهات (قسم/فرعي/مدينة) لا تتغير كل ثانية: نخزّنها 5 دقائق بدل جلب آلاف الصفوف مع كل زيارة
+const getFacetsCached = unstable_cache(getFacets, ['listing-facets'], { revalidate: 300 });
+
 export const listingService = {
   searchListings,
   getListing,
@@ -344,7 +348,7 @@ export const listingService = {
   getPending,
   updateListing,
   getSitemapEntries,
-  getFacets,
+  getFacets: getFacetsCached,
   createListing,
   setFeatured,
   setStatus,

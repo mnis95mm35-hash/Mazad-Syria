@@ -6,7 +6,8 @@ import { listingService } from '@/lib/listing_service';
 import { isLimited, recordEvent } from '@/lib/rate_limit';
 import { orders } from '@/lib/orders_service';
 import { dealers } from '@/lib/dealers_service';
-import { IMAGE_BUCKET, imagePathFromUrl, supabaseAdmin } from '@/lib/supabase';
+import { imagePathFromUrl } from '@/lib/supabase';
+import { removeImages } from '@/lib/listing_form';
 import { adminConfigured, checkPassword, endSession, isAdmin, startSession } from '@/lib/admin_auth';
 
 export type LoginState = { error?: string };
@@ -102,7 +103,7 @@ export async function deleteListingAction(formData: FormData): Promise<void> {
   const images = await listingService.deleteListing(id);
   // نحذف فقط الملفات التي تطابق نمط ملفاتنا في حاويتنا
   const paths = images.map(imagePathFromUrl).filter((p): p is string => p !== null);
-  if (paths.length) await supabaseAdmin().storage.from(IMAGE_BUCKET).remove(paths);
+  await removeImages(paths);
   revalidatePath('/');
   revalidatePath('/admin');
 }

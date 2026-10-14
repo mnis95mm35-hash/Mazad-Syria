@@ -28,5 +28,5 @@ export function imagePathFromUrl(url: string): string | null {
   const prefix = `${base.replace(/\/$/, '')}/storage/v1/object/public/${IMAGE_BUCKET}/`;
   if (!url.startsWith(prefix)) return null;
   const p = url.slice(prefix.length);
-  return /^[0-9a-f-]{36}\.(jpg|png|webp)$/.test(p) ? p : null;
+  return /^[0-9a-f-]{36}(-l)?\.(jpg|png|webp)$/.test(p) ? p : null;
 }

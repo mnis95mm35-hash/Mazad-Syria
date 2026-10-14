@@ -6,7 +6,8 @@ import { createListingAction, updateListingAction, type FormState } from '@/app/
 import { CATEGORIES, CITIES, type Listing } from '@/lib/sample_data';
 import { CURRENCIES, areasOf, subsOf } from '@/lib/taxonomy';
 
-const input = 'w-full border border-gray-300 rounded-lg px-4 py-2';
+const input =
+  'w-full border border-gray-300 rounded-lg px-4 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/40';
 
 // نموذج واحد للإنشاء والتعديل: عند تمرير listing يعمل كنموذج تعديل
 export default function ListingForm({ listing, captchaSiteKey = null }: { listing?: Listing; captchaSiteKey?: string | null }) {
