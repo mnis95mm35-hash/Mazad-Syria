@@ -5,9 +5,9 @@ import { getCurrentUser } from '@/lib/supabase_auth';
 export default async function Navbar() {
   const user = await getCurrentUser();
   return (
-    <header className="sticky top-0 z-20 border-b border-emerald-900/10 bg-white/90 backdrop-blur">
+    <header className="m-nav sticky top-0 z-20 border-b border-emerald-900/10 bg-white/90 backdrop-blur">
       <div className="container mx-auto flex items-center justify-between gap-3 px-4 py-3">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="m-logo flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-800 text-lg font-black text-amber-300">
             م
           </span>
@@ -32,7 +32,7 @@ export default async function Navbar() {
           </Link>
           <Link
             href="/listings/new"
-            className="rounded-xl bg-amber-400 px-5 py-2.5 text-sm font-bold text-emerald-950 shadow-sm transition hover:bg-amber-300"
+            data-magnet className="m-shine m-magnet rounded-xl bg-amber-400 px-5 py-2.5 text-sm font-bold text-emerald-950 shadow-sm transition hover:bg-amber-300"
           >
             + أضف إعلاناً
           </Link>

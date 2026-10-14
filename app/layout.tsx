@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Cairo } from 'next/font/google';
 import './globals.css';
 import { SITE } from '@/lib/site_config';
+import MotionFX from '@/components/motion/motion_fx';
 
 const cairo = Cairo({ subsets: ['arabic', 'latin'], display: 'swap' });
 
@@ -18,8 +19,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl">
-      <body className={`${cairo.className} antialiased bg-stone-50 text-gray-900`}>{children}</body>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <body className={`${cairo.className} antialiased bg-stone-50 text-gray-900`}>
+        <div aria-hidden="true" className="m-progress" />
+        <MotionFX />
+        {children}
+      </body>
     </html>
   );
 }

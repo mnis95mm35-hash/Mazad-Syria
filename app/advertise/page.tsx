@@ -17,11 +17,13 @@ export default function AdvertisePage() {
         </p>
 
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {PLANS.map((p) => (
+          {PLANS.map((p, i) => (
             <div
               key={p.id}
-              className={`flex flex-col rounded-3xl bg-white p-6 ${
-                p.highlight ? 'ring-2 ring-amber-400 shadow-xl' : 'ring-1 ring-black/5'
+              data-tilt
+              style={{ '--i': i } as React.CSSProperties}
+              className={`m-tilt m-scroll m-flip flex flex-col rounded-3xl bg-white p-6 ${
+                p.highlight ? 'm-border' : 'ring-1 ring-black/5'
               }`}
             >
               {p.highlight && (
@@ -60,7 +62,7 @@ export default function AdvertisePage() {
         </p>
         <div className="mt-6 grid gap-5 sm:grid-cols-2">
           {Object.values(DEALER_PLANS).map((p) => (
-            <div key={p.name} className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-black/5">
+            <div key={p.name} data-tilt className="m-tilt m-scroll m-flip flex flex-col rounded-3xl bg-white p-6 ring-1 ring-black/5">
               <h3 className="text-lg font-extrabold">{p.name}</h3>
               <p className="mt-3 text-4xl font-black text-emerald-800">${p.monthly}</p>
               <p className="text-sm text-gray-500">شهرياً</p>

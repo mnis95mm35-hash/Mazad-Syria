@@ -4,7 +4,7 @@ import { CATEGORIES } from '@/lib/sample_data';
 
 export default function Footer() {
   return (
-    <footer className="mt-16 bg-emerald-950 text-emerald-100">
+    <footer className="mt-16 overflow-hidden bg-emerald-950 text-emerald-100">
       <div className="container mx-auto grid gap-10 px-4 py-12 md:grid-cols-4">
         <div className="md:col-span-2">
           <p className="text-2xl font-extrabold text-white">{SITE.name}</p>
@@ -16,7 +16,7 @@ export default function Footer() {
           <ul className="space-y-2 text-sm">
             {CATEGORIES.map((c) => (
               <li key={c.slug}>
-                <Link href={`/${c.slug}`} className="hover:text-amber-300">{c.label}</Link>
+                <Link href={`/${c.slug}`} className="m-link hover:text-amber-300">{c.label}</Link>
               </li>
             ))}
           </ul>
@@ -25,16 +25,22 @@ export default function Footer() {
         <div>
           <p className="mb-3 font-bold text-white">للبائعين</p>
           <ul className="space-y-2 text-sm">
-            <li><Link href="/listings/new" className="hover:text-amber-300">أضف إعلاناً</Link></li>
-            <li><Link href="/account/dealer" className="hover:text-amber-300">حساب تاجر / معرض</Link></li>
-            <li><Link href="/dealers" className="hover:text-amber-300">دليل المعارض</Link></li>
-            <li><Link href="/advertise" className="hover:text-amber-300">الإعلانات المميزة</Link></li>
+            <li><Link href="/listings/new" className="m-link hover:text-amber-300">أضف إعلاناً</Link></li>
+            <li><Link href="/account/dealer" className="m-link hover:text-amber-300">حساب تاجر / معرض</Link></li>
+            <li><Link href="/dealers" className="m-link hover:text-amber-300">دليل المعارض</Link></li>
+            <li><Link href="/advertise" className="m-link hover:text-amber-300">الإعلانات المميزة</Link></li>
             <li>
-              <a href={`https://wa.me/${SITE.whatsapp}`} className="hover:text-amber-300">تواصل عبر واتساب</a>
+              <a href={`https://wa.me/${SITE.whatsapp}`} className="m-link hover:text-amber-300">تواصل عبر واتساب</a>
             </li>
           </ul>
         </div>
       </div>
+      <p
+        aria-hidden="true"
+        className="select-none text-center text-[22vw] font-black leading-none text-emerald-900/60 md:text-[11rem]"
+      >
+        {SITE.name}
+      </p>
       <div className="border-t border-emerald-900 py-4 text-center text-xs text-emerald-300/70">
         © {new Date().getFullYear()} {SITE.name}. جميع الحقوق محفوظة.
       </div>

@@ -7,3 +7,385 @@ html {
 body {
   -webkit-font-smoothing: antialiased;
 }
+
+/* ───────── حركات خفيفة: CSS فقط، بلا مكتبات ولا جافاسكربت ─────────
+   تستخدم transform وopacity فقط (تُعالَج على GPU)، وتتوقف كلياً
+   عند تفعيل «تقليل الحركة» في جهاز الزائر. */
+
+@keyframes m-rise {
+  from { opacity: 0; transform: translateY(22px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes m-word-in {
+  from { opacity: 0; transform: translateY(46px) rotate(5deg) scale(0.85); filter: blur(8px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+@keyframes m-flip {
+  from { opacity: 0; transform: perspective(700px) rotateX(-55deg) translateY(34px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes m-par {
+  to { transform: translate3d(0, 140px, 0); }
+}
+
+@keyframes m-par-slow {
+  to { transform: translate3d(0, 56px, 0); }
+}
+
+@property --a {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes m-spin {
+  to { --a: 360deg; }
+}
+
+@keyframes m-marquee {
+  to { transform: translate3d(50%, 0, 0); }
+}
+
+@keyframes m-sweep {
+  0%, 70% { transform: translate3d(-130%, 0, 0) skewX(-18deg); }
+  100%    { transform: translate3d(330%, 0, 0) skewX(-18deg); }
+}
+
+@keyframes m-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+@keyframes m-nav {
+  to { box-shadow: 0 8px 24px -14px rgb(6 78 59 / 0.45); background-color: rgb(255 255 255 / 0.97); }
+}
+
+@keyframes m-bob {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-4deg); }
+  50%      { transform: translate3d(0, -14px, 0) rotate(4deg); }
+}
+
+@keyframes m-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -18px, 0); }
+}
+
+@keyframes m-shine {
+  to { background-position: -200% center; }
+}
+
+/* ظهور كلمات العنوان تباعاً (كلمة كلمة، فلا يتقطّع اتصال الحروف العربية) */
+.m-word {
+  display: inline-block;
+  opacity: 0;
+  animation: m-word-in 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--i, 0) * 110ms + 80ms);
+}
+
+/* ظهور عادي عند التحميل، مع تأخير اختياري */
+.m-in {
+  opacity: 0;
+  animation: m-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--d, 0ms);
+}
+
+/* تدرّج ذهبي لامع على عبارة التمييز */
+.m-gold {
+  background-image: linear-gradient(90deg, #fcd34d 0%, #fffbeb 40%, #fbbf24 60%, #fcd34d 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: m-shine 6s linear infinite;
+}
+
+/* كرات الخلفية: تتحرك على الشاشات الكبيرة فقط */
+.m-blob {
+  will-change: auto;
+}
+@media (min-width: 768px) {
+  .m-blob {
+    animation: m-float 9s ease-in-out infinite;
+  }
+  .m-blob-2 {
+    animation-delay: -4s;
+  }
+}
+
+/* ظهور عند التمرير: تحسين تدريجي. المتصفحات التي لا تدعم
+   animation-timeline تعرض العنصر كما هو، فلا يضيع أي محتوى. */
+@supports (animation-timeline: view()) {
+  .m-scroll {
+    animation: m-rise linear backwards;
+    animation-timeline: view();
+    animation-range: entry calc(var(--i, 0) * 6%) entry calc(40% + var(--i, 0) * 6%);
+  }
+}
+
+/* رفع البطاقة عند اللمس أو التأشير */
+.m-lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+@media (hover: hover) {
+  .m-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px -12px rgb(6 78 59 / 0.35);
+  }
+}
+.m-lift:active {
+  transform: scale(0.98);
+}
+
+/* توهّج هادئ حول باقة «الأكثر طلباً» (ظل ثابت، بلا تكلفة رسم) */
+.m-glow {
+  box-shadow: 0 0 32px -4px rgb(251 191 36 / 0.45);
+}
+
+/* خط يتمدد تحت روابط الفوتر */
+.m-link {
+  background: linear-gradient(currentColor, currentColor) right bottom / 0 1px no-repeat;
+  transition: background-size 0.25s ease, color 0.2s ease;
+  padding-bottom: 2px;
+}
+@media (hover: hover) {
+  .m-link:hover {
+    background-size: 100% 1px;
+  }
+}
+
+/* شريط الأقسام المتحرك */
+.m-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.m-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: m-marquee 38s linear infinite;
+}
+@media (hover: hover) {
+  .m-marquee:hover .m-marquee-track {
+    animation-play-state: paused;
+  }
+}
+
+/* لمعة تمرّ على الأزرار الرئيسية كل بضع ثوانٍ */
+.m-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.m-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  animation: m-sweep 4.5s ease-in-out infinite;
+}
+.m-press {
+  transition: transform 0.15s ease;
+}
+.m-press:active {
+  transform: scale(0.95);
+}
+
+/* أيقونات عائمة في الهيرو (شاشات كبيرة فقط) */
+.m-chip {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .m-chip {
+    display: flex;
+    animation: m-bob 7s ease-in-out infinite;
+    animation-delay: var(--d, 0s);
+  }
+}
+
+/* شريط التنقل: ظل ناعم عند النزول بدل ثبات الشكل */
+@supports (animation-timeline: scroll()) {
+  .m-nav {
+    animation: m-nav linear both;
+    animation-timeline: scroll();
+    animation-range: 0 140px;
+  }
+}
+
+/* خط الخطوات: يمتد أثناء التمرير */
+.m-line {
+  transform-origin: right center;
+}
+@supports (animation-timeline: view()) {
+  .m-line {
+    animation: m-grow linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 45%;
+  }
+}
+
+/* خط ذهبي يُرسم تحت عناوين الأقسام */
+.m-title {
+  position: relative;
+  display: inline-block;
+}
+.m-title::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -6px auto;
+  height: 4px;
+  width: 56px;
+  border-radius: 4px;
+  background: #fbbf24;
+  transform-origin: right center;
+}
+@supports (animation-timeline: view()) {
+  .m-title::after {
+    animation: m-grow linear both;
+    animation-timeline: view();
+    animation-range: entry 20% entry 90%;
+  }
+}
+
+/* شارة الشعار تدور قليلاً عند التأشير */
+@media (hover: hover) {
+  .m-logo:hover span:first-child {
+    transform: rotate(-8deg) scale(1.08);
+  }
+}
+.m-logo span:first-child {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* بطاقات تميل نحو المؤشر (شاشات الفأرة فقط) */
+.m-tilt {
+  transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--lift, 0px));
+  transition: transform 0.18s ease-out, box-shadow 0.25s ease;
+}
+@media (hover: hover) {
+  .m-tilt:hover {
+    --lift: -6px;
+    box-shadow: 0 22px 40px -16px rgb(6 78 59 / 0.4);
+  }
+}
+.m-tilt:active {
+  --lift: -2px;
+}
+
+/* أزرار مغناطيسية تنجذب قليلاً للمؤشر */
+.m-magnet {
+  transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0);
+  transition: transform 0.2s ease-out;
+}
+.m-magnet:active {
+  transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0) scale(0.95);
+}
+
+/* بقعة ضوء تتبع المؤشر في الهيرو */
+.m-spot-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background: radial-gradient(440px circle at var(--mx, 50%) var(--my, 30%), rgb(252 211 77 / 0.2), transparent 62%);
+}
+[data-spot]:hover .m-spot-layer {
+  opacity: 1;
+}
+
+/* تحريك الخلفية والمحتوى بسرعات مختلفة أثناء النزول (بارالاكس) */
+@supports (animation-timeline: scroll()) {
+  .m-par {
+    animation: m-par linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 700px;
+  }
+  .m-par-slow {
+    animation: m-par-slow linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 700px;
+  }
+}
+
+/* شريط تقدّم القراءة أعلى الصفحة */
+.m-progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 3px;
+  z-index: 60;
+  pointer-events: none;
+  background: linear-gradient(270deg, #fbbf24, #34d399);
+  transform: scaleX(0);
+  transform-origin: right center;
+}
+@supports (animation-timeline: scroll()) {
+  .m-progress {
+    animation: m-grow linear both;
+    animation-timeline: scroll(root);
+  }
+}
+
+/* دخول البطاقة بقلب ثلاثي الأبعاد */
+@supports (animation-timeline: view()) {
+  .m-flip {
+    animation-name: m-flip;
+  }
+}
+
+/* إطار متدرّج يدور حول الباقة المميزة (شاشات كبيرة) */
+.m-border {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    conic-gradient(from var(--a, 0deg), #fbbf24, #34d399, #fbbf24 50%, #34d399, #fbbf24) border-box;
+  box-shadow: 0 0 36px -6px rgb(251 191 36 / 0.5);
+}
+@media (min-width: 768px) {
+  .m-border {
+    animation: m-spin 5s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-word,
+  .m-in {
+    opacity: 1;
+    animation: none;
+  }
+  .m-blob,
+  .m-gold {
+    animation: none;
+  }
+  .m-scroll,
+  .m-nav,
+  .m-line,
+  .m-title::after,
+  .m-chip,
+  .m-shine::after,
+  .m-marquee-track,
+  .m-par,
+  .m-par-slow,
+  .m-progress,
+  .m-border {
+    animation: none !important;
+  }
+  .m-progress {
+    display: none;
+  }
+  .m-tilt,
+  .m-magnet {
+    transform: none;
+    transition: none;
+  }
+  .m-lift,
+  .m-press,
+  .m-logo span:first-child,
+  .m-link {
+    transition: none;
+  }
+}
