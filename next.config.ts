@@ -1,11 +1,12 @@
 import type { NextConfig } from "next";
 
-// سياسة المحتوى: تجريبية (Report-Only) أولاً، فلا تمنع شيئاً وتكتب أي مخالفة في كونسول المتصفح.
-// بعد التأكد من خلوّ الكونسول من مخالفات على الموقع الحي نحوّلها إلى Content-Security-Policy.
+// سياسة المحتوى: مُلزِمة في الإنتاج، وتجريبية (Report-Only) في التطوير حتى لا تعطّل أدوات التطوير.
+// إن ظهر أي شيء محجوب على الموقع الحي، سترى في الكونسول سطراً يبدأ بـ "Refused to ..." يحدد المصدر.
+const isProd = process.env.NODE_ENV === "production";
 const csp = [
   "default-src 'self'",
   // وضع التطوير فقط: React يستخدم eval لتتبّع الأخطاء، ولا يُستخدم في الإنتاج
-  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'"} https://challenges.cloudflare.com`,
+  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"} https://challenges.cloudflare.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.supabase.co",
   "font-src 'self' data:",
@@ -33,7 +34,7 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Strict-Transport-Security", value: "max-age=31536000" },
-          { key: "Content-Security-Policy-Report-Only", value: csp },
+          { key: isProd ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only", value: csp },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
