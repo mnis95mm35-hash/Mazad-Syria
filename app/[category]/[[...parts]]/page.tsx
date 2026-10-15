@@ -5,6 +5,8 @@ import MainLayout from '@/components/layout/main_layout';
 import ListingCard, { categoryInfo } from '@/components/listings/listing_card';
 import Pagination from '@/components/listings/pagination';
 import SearchBar from '@/components/listings/search_bar';
+import ExtraFilters from '@/components/listings/extra_filters';
+import { EXTRA_FILTER_KEYS, extraFilterParams, parseExtraFilters, type ExtraFilterRaw } from '@/lib/attributes';
 import { listingService } from '@/lib/listing_service';
 import { CITIES } from '@/lib/sample_data';
 import { SITE } from '@/lib/site_config';
@@ -21,7 +23,7 @@ import {
 } from '@/lib/taxonomy';
 
 type Params = { category: string; parts?: string[] };
-type Search = { q?: string; area?: string; minPrice?: string; maxPrice?: string; sort?: string; currency?: string; page?: string };
+type Search = ExtraFilterRaw & { q?: string; area?: string; minPrice?: string; maxPrice?: string; sort?: string; currency?: string; page?: string };
 
 // يفسّر المسار: /cars  /cars/damascus  /cars/toyota  /cars/toyota/damascus
 function resolve({ category, parts = [] }: Params) {
@@ -67,7 +69,9 @@ export async function generateMetadata({
   const sp = await searchParams;
   const { title } = labels(r);
   const path = browsePath(r);
-  const filtered = Boolean(sp.q || sp.area || sp.minPrice || sp.maxPrice || (sp.sort && sp.sort !== 'newest'));
+  const filtered = Boolean(
+    sp.q || sp.area || sp.minPrice || sp.maxPrice || (sp.sort && sp.sort !== 'newest') || EXTRA_FILTER_KEYS.some((k) => sp[k]),
+  );
   return {
     title,
     description: `تصفح إعلانات ${title} على ${SITE.name}: أحدث العروض بالأسعار والصور، وتواصل مباشرة مع البائعين.`,
@@ -87,7 +91,10 @@ export default async function BrowsePage({
 }) {
   const r = resolve(await params);
   if (!r) notFound();
-  const { q, area: areaParam, minPrice, maxPrice, sort, currency, page: pageParam } = await searchParams;
+  const sp = await searchParams;
+  const { q, area: areaParam, minPrice, maxPrice, sort, currency, page: pageParam } = sp;
+  const extra = parseExtraFilters(sp, r.category);
+  const extraRaw: ExtraFilterRaw = Object.fromEntries(EXTRA_FILTER_KEYS.map((k) => [k, sp[k]]));
   const area = r.city && areaParam && isValidArea(r.city, areaParam) ? areaParam : undefined;
   const toNum = (v?: string) => {
     const n = Number(v);
@@ -111,6 +118,7 @@ export default async function BrowsePage({
       sort: sortKey,
       currency: cur,
       page: pageNum,
+      ...extra,
     }),
     listingService.getFacets().catch(() => []),
   ]);
@@ -213,7 +221,9 @@ export default async function BrowsePage({
           lockPlace
           area={area}
           areaOptions={r.city ? areasOf(r.city) : undefined}
-        />
+        >
+          <ExtraFilters category={r.category} values={extraRaw} />
+        </SearchBar>
       </div>
 
       <section className="mt-8">
@@ -240,6 +250,7 @@ export default async function BrowsePage({
             maxPrice,
             sort: sortKey === 'newest' ? undefined : sortKey,
             currency: cur,
+            ...extraFilterParams(extraRaw, extra),
           }}
         />
       </section>

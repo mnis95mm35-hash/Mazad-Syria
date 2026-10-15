@@ -8,6 +8,9 @@ import { isLimited, recordEvent } from '@/lib/rate_limit';
 import { imagePathFromUrl } from '@/lib/supabase';
 import { listingLimitError } from '@/lib/limits';
 import { isTrustedOwner } from '@/lib/trust';
+import { adminUrl, notifyAdmin } from '@/lib/notify';
+import { categoryInfo } from '@/components/listings/listing_card';
+import { formatPrice } from '@/lib/format';
 import { CAPTCHA_ERROR, verifyTurnstile } from '@/lib/turnstile';
 import { MAX_IMAGES, filesFrom, parseListingFields, prepareImages, removeImages, uploadImages } from '@/lib/listing_form';
 
@@ -65,6 +68,11 @@ export async function createListingAction(_prev: FormState, formData: FormData):
   }
 
   revalidatePath('/');
+  if (!trusted) {
+    notifyAdmin(
+      `🆕 إعلان جديد بانتظار المراجعة #${id}\n${parsed.fields.title}\n${categoryInfo(parsed.fields.category).label} · ${parsed.fields.city} · ${formatPrice(parsed.fields.price, parsed.fields.currency)}\n${adminUrl()}`,
+    );
+  }
   // الإعلان قيد المراجعة غير ظاهر للعامة، فنوجّه صاحبه لصفحة حسابه
   redirect(trusted ? `/listings/${id}` : '/account?submitted=1');
 }
@@ -116,5 +124,6 @@ export async function updateListingAction(_prev: FormState, formData: FormData):
 
   revalidatePath('/');
   revalidatePath(`/listings/${id}`);
+  if (backToReview) notifyAdmin(`✏️ إعلان عُدّل ويحتاج مراجعة #${id}\n${parsed.fields.title}\n${adminUrl()}`);
   redirect('/account');
 }

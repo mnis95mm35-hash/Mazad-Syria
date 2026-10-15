@@ -18,6 +18,20 @@ export type Listing = {
   subcategory?: string | null;
   area?: string | null;
   expiresAt?: Date | null;
+  // مواصفات (اختيارية حسب القسم)
+  condition?: string | null;
+  carYear?: number | null;
+  carKm?: number | null;
+  gearbox?: string | null;
+  fuel?: string | null;
+  rooms?: number | null;
+  sizeM2?: number | null;
+  furnished?: boolean | null;
+  // الموقع على الخريطة
+  lat?: number | null;
+  lng?: number | null;
+  // سبب الرفض أو الحظر (يظهر لصاحب الإعلان)
+  rejectReason?: string | null;
 };
 
 export const CATEGORIES = [

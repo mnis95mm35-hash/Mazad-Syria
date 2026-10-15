@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { CATEGORIES, type Listing } from '@/lib/sample_data';
 import { formatPrice } from '@/lib/format';
 import { thumbUrl } from '@/lib/images';
+import { cardChips } from '@/lib/attributes';
 
 export function categoryInfo(slug: string) {
   return CATEGORIES.find((c) => c.slug === slug) ?? { slug, label: slug, icon: '📦' };
@@ -45,6 +46,9 @@ export default function ListingCard({ listing }: { listing: Listing }) {
       <div className="p-4">
         <p className="text-xl font-extrabold text-emerald-800">{formatPrice(listing.price, listing.currency)}</p>
         <h3 className="mt-1 line-clamp-2 font-bold leading-snug">{listing.title}</h3>
+        {cardChips(listing).length > 0 && (
+          <p className="mt-1.5 text-xs font-semibold text-gray-600">{cardChips(listing).join(' · ')}</p>
+        )}
         <p className="mt-3 flex items-center gap-2 text-sm text-gray-500">
           <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-emerald-800">{cat.label}</span>
           <span>📍 {listing.city}{listing.area ? ` - ${listing.area}` : ''}</span>

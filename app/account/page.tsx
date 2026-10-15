@@ -92,6 +92,12 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
                       <p className="text-sm text-gray-500">
                         {formatPrice(l.price, l.currency)} · {l.city}
                       </p>
+                      {l.status === 'blocked' && l.rejectReason && (
+                        <p className="mt-2 max-w-xl rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+                          <b>سبب الرفض:</b> {l.rejectReason}
+                          <span className="mt-1 block text-xs text-red-700/80">يمكنك نشر إعلان جديد بعد تصحيح المخالفة، أو تواصل معنا إن رأيت أن القرار خاطئ.</span>
+                        </p>
+                      )}
                       <div className="mt-2 flex flex-wrap gap-2 text-xs font-bold">
                         {l.status === 'blocked' && <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">محظور من الإدارة</span>}
                         {l.status === 'pending' && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-800">قيد المراجعة</span>}

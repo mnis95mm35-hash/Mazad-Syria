@@ -1,10 +1,11 @@
 import { unstable_cache } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase';
 import type { Listing } from '@/lib/sample_data';
+import { EMPTY_EXTRAS, type ExtraFilters, type ListingExtras } from '@/lib/attributes';
 
 export type SortKey = 'newest' | 'price_asc' | 'price_desc';
 
-export type ListingFilters = {
+export type ListingFilters = ExtraFilters & {
   q?: string;
   category?: string;
   city?: string;
@@ -44,7 +45,7 @@ export type NewListingInput = {
   userId?: string | null;
   // الإعلانات الجديدة تبدأ pending إلا لمن تثق به الإدارة
   status?: 'pending' | 'active';
-};
+} & Partial<ListingExtras>;
 
 export type ListingPatch = Omit<NewListingInput, 'userId' | 'status'> & { status?: 'pending' | 'active' | 'hidden' };
 
@@ -71,7 +72,35 @@ type Row = {
   currency: 'USD' | 'SYP';
   subcategory: string | null;
   area: string | null;
+  condition: string | null;
+  car_year: number | null;
+  car_km: number | null;
+  gearbox: string | null;
+  fuel: string | null;
+  rooms: number | null;
+  size_m2: number | null;
+  furnished: boolean | null;
+  lat: number | null;
+  lng: number | null;
+  reject_reason: string | null;
 };
+
+// الحقول الاختيارية الجديدة كما تُكتب في قاعدة البيانات
+function extrasToColumns(x: Partial<ListingExtras>) {
+  const e = { ...EMPTY_EXTRAS, ...x };
+  return {
+    condition: e.condition,
+    car_year: e.carYear,
+    car_km: e.carKm,
+    gearbox: e.gearbox,
+    fuel: e.fuel,
+    rooms: e.rooms,
+    size_m2: e.sizeM2,
+    furnished: e.furnished,
+    lat: e.lat,
+    lng: e.lng,
+  };
+}
 
 function fromRow(r: Row): Listing {
   const images = r.images ?? [];
@@ -97,6 +126,17 @@ function fromRow(r: Row): Listing {
     currency: r.currency ?? 'USD',
     subcategory: r.subcategory,
     area: r.area,
+    condition: r.condition ?? null,
+    carYear: r.car_year ?? null,
+    carKm: r.car_km ?? null,
+    gearbox: r.gearbox ?? null,
+    fuel: r.fuel ?? null,
+    rooms: r.rooms ?? null,
+    sizeM2: r.size_m2 ?? null,
+    furnished: r.furnished ?? null,
+    lat: r.lat ?? null,
+    lng: r.lng ?? null,
+    rejectReason: r.reject_reason ?? null,
   };
 }
 
@@ -136,6 +176,15 @@ async function searchListings(filters: ListingFilters = {}): Promise<ListingsPag
   if (filters.city) query = query.eq('city', filters.city);
   if (filters.area) query = query.eq('area', filters.area);
   if (filters.userId) query = query.eq('user_id', filters.userId);
+  if (filters.yearFrom !== undefined) query = query.gte('car_year', filters.yearFrom);
+  if (filters.yearTo !== undefined) query = query.lte('car_year', filters.yearTo);
+  if (filters.kmTo !== undefined) query = query.lte('car_km', filters.kmTo);
+  if (filters.gearbox) query = query.eq('gearbox', filters.gearbox);
+  if (filters.fuel) query = query.eq('fuel', filters.fuel);
+  if (filters.condition) query = query.eq('condition', filters.condition);
+  if (filters.roomsFrom !== undefined) query = query.gte('rooms', filters.roomsFrom);
+  if (filters.sizeFrom !== undefined) query = query.gte('size_m2', filters.sizeFrom);
+  if (filters.sizeTo !== undefined) query = query.lte('size_m2', filters.sizeTo);
   const priceMode =
     filters.minPrice !== undefined || filters.maxPrice !== undefined || filters.sort === 'price_asc' || filters.sort === 'price_desc';
   if (priceMode) query = query.eq('currency', filters.currency ?? 'USD');
@@ -246,6 +295,7 @@ async function updateListing(id: number, patch: ListingPatch): Promise<void> {
       currency: patch.currency,
       subcategory: patch.subcategory,
       area: patch.area,
+      ...extrasToColumns(patch),
       ...(patch.status ? { status: patch.status } : {}),
     })
     .eq('id', id);
@@ -292,6 +342,7 @@ async function createListing(input: NewListingInput): Promise<number> {
       currency: input.currency,
       subcategory: input.subcategory,
       area: input.area,
+      ...extrasToColumns(input),
       user_id: input.userId ?? null,
       status: input.status ?? 'active',
       expires_at: new Date(Date.now() + LISTING_LIFETIME_DAYS * DAY_MS).toISOString(),
@@ -317,6 +368,38 @@ async function setFeatured(id: number, days: number | null): Promise<void> {
 async function setStatus(id: number, status: 'pending' | 'active' | 'hidden' | 'blocked'): Promise<void> {
   const { error } = await supabaseAdmin().from('listings').update({ status }).eq('id', id);
   if (error) throw new Error(`تعذّر تحديث الحالة: ${error.message}`);
+}
+
+// قبول بعد المراجعة: يفعّل الإعلان ويبدأ مدته من الآن ويمسح أي سبب رفض سابق
+async function approve(id: number): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from('listings')
+    .update({
+      status: 'active',
+      expires_at: new Date(Date.now() + LISTING_LIFETIME_DAYS * DAY_MS).toISOString(),
+      reject_reason: null,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (error) throw new Error(`تعذّر قبول الإعلان: ${error.message}`);
+}
+
+// رفض أو حظر مع سبب يراه صاحب الإعلان
+async function reject(id: number, reason: string): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from('listings')
+    .update({ status: 'blocked', reject_reason: reason.slice(0, 300), reviewed_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw new Error(`تعذّر رفض الإعلان: ${error.message}`);
+}
+
+// إعادة إعلان حُجب تلقائياً بسبب البلاغات (دون تغيير مدته)
+async function restore(id: number): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from('listings')
+    .update({ status: 'active', reject_reason: null, reviewed_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw new Error(`تعذّر إعادة الإعلان: ${error.message}`);
 }
 
 // تجديد: يمدّد الصلاحية من الآن ويعيد الإعلان فعّالاً
@@ -353,5 +436,8 @@ export const listingService = {
   setFeatured,
   setStatus,
   renew,
+  approve,
+  reject,
+  restore,
   deleteListing,
 };

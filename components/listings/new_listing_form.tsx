@@ -1,10 +1,15 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useState, useTransition, type FormEvent } from 'react';
 import Turnstile from '@/components/security/turnstile';
 import { createListingAction, updateListingAction, type FormState } from '@/app/listings/actions';
 import { CATEGORIES, CITIES, type Listing } from '@/lib/sample_data';
 import { CURRENCIES, areasOf, subsOf } from '@/lib/taxonomy';
+import { CONDITIONS, FUELS, GEARBOXES, fieldsFor } from '@/lib/attributes';
+import ImagePicker from '@/components/listings/image_picker';
+import LocationPicker from '@/components/listings/location_picker';
+
+const MAX_IMAGES = 5;
 
 const input =
   'w-full border border-gray-300 rounded-lg px-4 py-2 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/40';
@@ -14,13 +19,24 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
   const editing = Boolean(listing);
   const [category, setCategory] = useState(listing?.category ?? '');
   const [city, setCity] = useState(listing?.city ?? '');
+  const [sub, setSub] = useState(listing?.subcategory ?? '');
+  const [kept, setKept] = useState<string[]>(listing?.images ?? []);
   const [state, action, pending] = useActionState<FormState, FormData>(
     editing ? updateListingAction : createListingAction,
     {},
   );
+  const [, startTransition] = useTransition();
+  const f = fieldsFor(category, sub);
+
+  // نرسل النموذج يدوياً حتى لا يمسح React الحقول والصور عند ظهور خطأ تحقق
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => action(fd));
+  }
 
   return (
-    <form action={action} className="relative bg-white border border-gray-200 rounded-xl p-6 space-y-4 max-w-2xl">
+    <form onSubmit={onSubmit} className="relative bg-white border border-gray-200 rounded-xl p-6 space-y-4 max-w-2xl">
       {state.error && (
         <p className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">{state.error}</p>
       )}
@@ -46,7 +62,10 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
             name="category"
             required
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setSub('');
+            }}
             className={input}
           >
             <option value="" disabled>اختر القسم</option>
@@ -81,7 +100,7 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
       {subsOf(category).length > 0 && (
         <label className="block">
           <span className="block text-sm font-medium mb-1">القسم الفرعي (اختياري)</span>
-          <select key={category} name="subcategory" defaultValue={listing?.category === category ? (listing?.subcategory ?? '') : ''} className={input}>
+          <select key={category} name="subcategory" value={sub} onChange={(e) => setSub(e.target.value)} className={input}>
             <option value="">بدون</option>
             {subsOf(category).map((s) => (
               <option key={s.slug} value={s.slug}>{s.label}</option>
@@ -105,6 +124,81 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
         </label>
       </div>
 
+      {(f.condition || f.car || f.home || f.size) && (
+        <fieldset className="space-y-4 rounded-xl bg-stone-50 p-4">
+          <legend className="px-2 text-sm font-bold">المواصفات (اختيارية، لكنها تجذب المشترين وتظهر في الفلاتر)</legend>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {f.condition && (
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium">الحالة</span>
+                <select name="condition" defaultValue={listing?.condition ?? ''} className={input}>
+                  <option value="">غير محدد</option>
+                  {CONDITIONS.map((o) => (
+                    <option key={o.v} value={o.v}>{o.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {f.car && (
+              <>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium">سنة الصنع</span>
+                  <input name="carYear" type="number" inputMode="numeric" min={1950} max={new Date().getFullYear() + 1} placeholder="مثال: 2018" defaultValue={listing?.carYear ?? ''} className={input} />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium">الكيلومترات المقطوعة</span>
+                  <input name="carKm" type="number" inputMode="numeric" min={0} max={3000000} placeholder="مثال: 120000" defaultValue={listing?.carKm ?? ''} className={input} />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium">ناقل الحركة</span>
+                  <select name="gearbox" defaultValue={listing?.gearbox ?? ''} className={input}>
+                    <option value="">غير محدد</option>
+                    {GEARBOXES.map((o) => (
+                      <option key={o.v} value={o.v}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium">نوع الوقود</span>
+                  <select name="fuel" defaultValue={listing?.fuel ?? ''} className={input}>
+                    <option value="">غير محدد</option>
+                    {FUELS.map((o) => (
+                      <option key={o.v} value={o.v}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
+            {f.home && (
+              <>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium">عدد الغرف</span>
+                  <input name="rooms" type="number" inputMode="numeric" min={1} max={20} defaultValue={listing?.rooms ?? ''} className={input} />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium">مفروش؟</span>
+                  <select
+                    name="furnished"
+                    defaultValue={listing?.furnished === true ? 'yes' : listing?.furnished === false ? 'no' : ''}
+                    className={input}
+                  >
+                    <option value="">غير محدد</option>
+                    <option value="yes">نعم</option>
+                    <option value="no">لا</option>
+                  </select>
+                </label>
+              </>
+            )}
+            {f.size && (
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium">المساحة (م²)</span>
+                <input name="sizeM2" type="number" inputMode="numeric" min={1} defaultValue={listing?.sizeM2 ?? ''} className={input} />
+              </label>
+            )}
+          </div>
+        </fieldset>
+      )}
+
       {listing && (listing.images ?? []).length > 0 && (
         <fieldset>
           <legend className="block text-sm font-medium mb-2">الصور الحالية (أزل العلامة لحذف صورة)</legend>
@@ -113,30 +207,41 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
               <label key={url} className="relative block h-24 w-24 overflow-hidden rounded-lg ring-1 ring-black/10">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="h-full w-full object-cover" />
-                <input type="checkbox" name="keep" value={url} defaultChecked className="absolute right-1 top-1 h-5 w-5" />
+                <input
+                  type="checkbox"
+                  name="keep"
+                  value={url}
+                  checked={kept.includes(url)}
+                  onChange={(e) => setKept((cur) => (e.target.checked ? [...cur, url] : cur.filter((u) => u !== url)))}
+                  className="absolute right-1 top-1 h-5 w-5"
+                />
               </label>
             ))}
           </div>
         </fieldset>
       )}
 
-      <label className="block">
-        <span className="block text-sm font-medium mb-1">
-          {editing ? 'إضافة صور جديدة' : 'صور الإعلان'} (اختياري، حتى 5 صور في المجموع، 3 ميغابايت للصورة)
+      <div>
+        <span className="mb-2 block text-sm font-medium">
+          {editing ? 'إضافة صور جديدة' : 'صور الإعلان'} (اختياري، حتى {MAX_IMAGES} صور في المجموع)
         </span>
-        <input
-          name="images"
-          type="file"
-          multiple
-          accept="image/jpeg,image/png,image/webp"
-          className="block w-full text-sm file:ml-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-4 file:py-2 file:text-emerald-700"
-        />
-      </label>
+        <ImagePicker max={Math.max(MAX_IMAGES - kept.length, 0)} />
+      </div>
 
       <label className="block">
         <span className="block text-sm font-medium mb-1">الوصف</span>
         <textarea name="description" rows={5} defaultValue={listing?.description ?? ''} className={input} />
       </label>
+
+      <div>
+        <span className="mb-2 block text-sm font-medium">
+          موقع {category === 'real-estate' ? 'العقار' : 'الإعلان'} على الخريطة (اختياري)
+        </span>
+        <LocationPicker
+          city={city}
+          initial={listing?.lat != null && listing?.lng != null ? { lat: listing.lat, lng: listing.lng } : null}
+        />
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="block">

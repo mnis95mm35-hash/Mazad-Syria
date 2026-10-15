@@ -9,6 +9,7 @@ import { getCurrentUser } from '@/lib/supabase_auth';
 import { isLimited, recordEvent } from '@/lib/rate_limit';
 import { imagePathFromUrl } from '@/lib/supabase';
 import { dealerPrice, isDealerPlan } from '@/lib/site_config';
+import { adminUrl, notifyAdmin } from '@/lib/notify';
 
 export type DealerFormState = { error?: string };
 
@@ -64,6 +65,7 @@ export async function saveDealerAction(_prev: DealerFormState, formData: FormDat
     } else {
       const dealer = await dealers.create(user.id, { ...parsed.fields, logoUrl }, plan!);
       await dealers.createRequest({ dealerId: dealer.id, userId: user.id, plan: plan!, months });
+      notifyAdmin(`🏪 تاجر جديد بانتظار الدفع: ${dealer.name}\n${adminUrl()}`);
     }
   } catch (e) {
     if (newLogo) await removeImages([newLogo.name]);
@@ -96,5 +98,6 @@ export async function requestPlanAction(formData: FormData): Promise<void> {
 
   await recordEvent('plan-request');
   await dealers.createRequest({ dealerId: dealer.id, userId: user.id, plan, months });
+  notifyAdmin(`🏪 طلب اشتراك تاجر: ${dealer.name} (${months} شهراً)\n${adminUrl()}`);
   revalidatePath('/account/dealer');
 }

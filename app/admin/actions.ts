@@ -8,6 +8,8 @@ import { orders } from '@/lib/orders_service';
 import { dealers } from '@/lib/dealers_service';
 import { imagePathFromUrl } from '@/lib/supabase';
 import { removeImages } from '@/lib/listing_form';
+import { reports, AUTO_BLOCK_REASON } from '@/lib/reports_service';
+import { buildReason } from '@/lib/review';
 import { adminConfigured, checkPassword, endSession, isAdmin, startSession } from '@/lib/admin_auth';
 
 export type LoginState = { error?: string };
@@ -65,9 +67,11 @@ export async function setStatusAction(formData: FormData): Promise<void> {
   const id = Number(formData.get('id'));
   const status = String(formData.get('status'));
   if (!Number.isInteger(id) || (status !== 'active' && status !== 'blocked')) return;
-  await listingService.setStatus(id, status);
+  if (status === 'active') await listingService.restore(id);
+  else await listingService.reject(id, 'حظرته الإدارة');
   revalidatePath('/');
   revalidatePath('/admin');
+  revalidatePath('/account');
 }
 
 export async function activateRequestAction(formData: FormData): Promise<void> {
@@ -146,20 +150,51 @@ export async function setDealerStatusAction(formData: FormData): Promise<void> {
   revalidatePath('/admin');
 }
 
-// مراجعة الإعلانات الجديدة: القبول يفعّل الإعلان ويبدأ مدته من الآن، والرفض يحظره
+// مراجعة الإعلانات الجديدة: القبول يفعّل الإعلان ويبدأ مدته من الآن، والرفض يحظره مع سبب يراه صاحبه
 export async function approveListingAction(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = Number(formData.get('id'));
   if (!Number.isInteger(id)) return;
-  await listingService.renew(id);
+  await listingService.approve(id);
   revalidatePath('/');
   revalidatePath('/admin');
+  revalidatePath('/account');
 }
 
 export async function rejectListingAction(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = Number(formData.get('id'));
-  if (!Number.isInteger(id)) return;
-  await listingService.setStatus(id, 'blocked');
+  const reason = buildReason(formData.get('reason'), formData.get('note'));
+  if (!Number.isInteger(id) || !reason) return;
+  await listingService.reject(id, reason);
+  revalidatePath('/');
   revalidatePath('/admin');
+  revalidatePath('/account');
+}
+
+// ===== البلاغات =====
+
+// البلاغ غير صحيح: نعالجه، ونعيد الإعلان إن كان قد حُجب تلقائياً بسببه
+export async function dismissReportsAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get('id'));
+  if (!Number.isInteger(id)) return;
+  const l = await listingService.getListing(id, { includeInactive: true });
+  await reports.resolveForListing(id);
+  if (l && l.status === 'blocked' && l.rejectReason === AUTO_BLOCK_REASON) await listingService.restore(id);
+  revalidatePath('/');
+  revalidatePath('/admin');
+}
+
+// البلاغ صحيح: نحظر الإعلان بسبب يراه صاحبه، ونعالج البلاغات
+export async function blockReportedListingAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get('id'));
+  const reason = buildReason(formData.get('reason'), formData.get('note'));
+  if (!Number.isInteger(id) || !reason) return;
+  await listingService.reject(id, reason);
+  await reports.resolveForListing(id);
+  revalidatePath('/');
+  revalidatePath('/admin');
+  revalidatePath('/account');
 }

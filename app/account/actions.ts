@@ -10,6 +10,7 @@ import { imagePathFromUrl } from '@/lib/supabase';
 import { removeImages } from '@/lib/listing_form';
 import { featurePrice } from '@/lib/site_config';
 import { listingLimitError } from '@/lib/limits';
+import { adminUrl, notifyAdmin } from '@/lib/notify';
 
 // يعيد الإعلان فقط إن كان ملكاً للمستخدم الحالي
 async function ownListing(formData: FormData) {
@@ -65,5 +66,6 @@ export async function requestFeatureAction(formData: FormData): Promise<void> {
   if (await orders.hasPending(own.listing.id)) return;
   await recordEvent('feature-request');
   await orders.create({ listingId: own.listing.id, userId: own.user.id, days, amount });
+  notifyAdmin(`★ طلب تمييز جديد للإعلان #${own.listing.id}: ${days} يوماً بمبلغ $${amount}\n${adminUrl()}`);
   refresh();
 }

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { CATEGORIES, CITIES } from '@/lib/sample_data';
 import { CURRENCIES } from '@/lib/taxonomy';
 
@@ -16,6 +17,7 @@ export default function SearchBar({
   lockPlace = false,
   area,
   areaOptions,
+  children,
 }: {
   q?: string;
   category?: string;
@@ -31,6 +33,8 @@ export default function SearchBar({
   // في صفحة محافظة نعرض قائمة مدنها وبلداتها
   area?: string;
   areaOptions?: string[];
+  // حقول إضافية (فلاتر المواصفات) تظهر تحت الصف الثاني
+  children?: ReactNode;
 }) {
   return (
     <form action={action} className="space-y-3">
@@ -80,6 +84,7 @@ export default function SearchBar({
           <option value="price_desc">السعر: من الأعلى للأقل</option>
         </select>
       </div>
+      {children}
     </form>
   );
 }

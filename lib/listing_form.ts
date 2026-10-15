@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import sharp from 'sharp';
 import { CATEGORIES, CITIES } from '@/lib/sample_data';
 import { isValidPhone } from '@/lib/phone';
+import { parseExtras, type ListingExtras } from '@/lib/attributes';
 import { isCurrency, isValidArea, isValidSub, type Currency } from '@/lib/taxonomy';
 import { IMAGE_BUCKET, publicImageUrl, supabaseAdmin } from '@/lib/supabase';
 
@@ -19,7 +20,7 @@ export type ListingFields = {
   currency: Currency;
   subcategory: string | null;
   area: string | null;
-};
+} & ListingExtras;
 
 // تحقق موحّد لحقول نموذج الإعلان (إنشاء وتعديل)
 export function parseListingFields(fd: FormData): { error: string } | { fields: ListingFields } {
@@ -45,8 +46,11 @@ export function parseListingFields(fd: FormData): { error: string } | { fields: 
   if (sellerName.length < 2) return { error: 'أدخل اسمك.' };
   if (!sellerPhone) return { error: 'رقم الهاتف مطلوب ليتمكن المشترون من التواصل معك.' };
   if (!isValidPhone(sellerPhone)) return { error: 'رقم الهاتف غير صالح.' };
+  const extras = parseExtras(category, subcategory || null, fd);
+  if ('error' in extras) return { error: extras.error };
   return {
     fields: {
+      ...extras.extras,
       title,
       description: description || null,
       price,

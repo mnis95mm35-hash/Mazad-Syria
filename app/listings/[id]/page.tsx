@@ -13,6 +13,8 @@ import { getCurrentUser } from '@/lib/supabase_auth';
 import { SITE } from '@/lib/site_config';
 import { formatPrice } from '@/lib/format';
 import { browsePath, citySlug, subLabel } from '@/lib/taxonomy';
+import { specsOf } from '@/lib/attributes';
+import ListingMap from '@/components/listings/listing_map';
 
 const validId = (id: string) => /^[1-9][0-9]{0,14}$/.test(id);
 
@@ -104,10 +106,29 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
                 <span>📍 {listing.city}{listing.area ? ` - ${listing.area}` : ''}</span>
               )}
             </p>
+            {specsOf(listing).length > 0 && (
+              <>
+                <h2 className="mb-3 mt-8 text-lg font-extrabold">المواصفات</h2>
+                <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {specsOf(listing).map(([k, v]) => (
+                    <div key={k} className="rounded-xl bg-stone-50 px-4 py-3">
+                      <dt className="text-xs text-gray-500">{k}</dt>
+                      <dd className="font-bold">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
             <h2 className="mb-2 mt-8 text-lg font-extrabold">الوصف</h2>
             <p className="whitespace-pre-line leading-8 text-gray-700">
               {listing.description || 'لا يوجد وصف.'}
             </p>
+            {listing.lat != null && listing.lng != null && (
+              <>
+                <h2 className="mb-3 mt-8 text-lg font-extrabold">الموقع</h2>
+                <ListingMap lat={listing.lat} lng={listing.lng} exact={listing.category === 'real-estate'} />
+              </>
+            )}
           </div>
         </div>
 
