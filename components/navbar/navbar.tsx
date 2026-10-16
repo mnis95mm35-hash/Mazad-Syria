@@ -24,6 +24,9 @@ export default async function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <Link href="/favorites" aria-label="المفضلة" title="المفضلة" className="rounded-xl px-2.5 py-2.5 text-lg text-rose-600 hover:bg-rose-50">
+            ♥
+          </Link>
           <Link
             href={user ? '/account' : '/login'}
             className="rounded-xl px-3 py-2.5 text-sm font-bold text-emerald-900 hover:bg-emerald-50"

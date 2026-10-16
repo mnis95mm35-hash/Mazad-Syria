@@ -440,6 +440,7 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
                     {l.status === 'hidden' && (
                       <span className="rounded-full bg-stone-100 px-2 py-0.5 font-bold text-gray-700">مخفي (من صاحبه)</span>
                     )}
+                    {l.soldAt && <span className="rounded-full bg-red-50 px-2 py-0.5 font-bold text-red-700">تم البيع</span>}
                     {(reportCounts[l.id] ?? 0) > 0 && (
                       <span className="rounded-full bg-orange-50 px-2 py-0.5 font-bold text-orange-700">
                         🚩 {reportCounts[l.id]} بلاغ

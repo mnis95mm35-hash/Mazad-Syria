@@ -10,7 +10,7 @@ import { dealers, isLive, listingLimit } from '@/lib/dealers_service';
 import { getCurrentUser } from '@/lib/supabase_auth';
 import { FEATURE_OPTIONS, featureRequestWhatsAppUrl } from '@/lib/site_config';
 import { logoutAction } from '@/app/auth/actions';
-import { renewMyListingAction, requestFeatureAction, toggleMyListingAction } from '@/app/account/actions';
+import { renewMyListingAction, requestFeatureAction, setSoldAction, toggleMyListingAction } from '@/app/account/actions';
 
 export const metadata: Metadata = { title: 'حسابي', robots: { index: false } };
 
@@ -28,7 +28,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   ]);
   const now = Date.now();
   const limit = listingLimit(dealer);
-  const activeCount = listings.filter((l) => (l.status === 'active' || l.status === 'pending') && !(l.expiresAt && l.expiresAt.getTime() <= now)).length;
+  const activeCount = listings.filter((l) => (l.status === 'active' || l.status === 'pending') && !l.soldAt && !(l.expiresAt && l.expiresAt.getTime() <= now)).length;
   const atLimit = activeCount >= limit;
   const pendingByListing = new Map(requests.filter((r) => r.status === 'pending').map((r) => [r.listingId, r]));
 
@@ -76,7 +76,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           {listings.map((l) => {
             const expired = Boolean(l.expiresAt && l.expiresAt.getTime() <= now);
             const pending = pendingByListing.get(l.id);
-            const canFeature = l.status === 'active' && !expired && !l.isFeatured && !pending;
+            const canFeature = l.status === 'active' && !l.soldAt && !expired && !l.isFeatured && !pending;
             return (
               <div key={l.id} className="rounded-2xl bg-white p-5 ring-1 ring-black/5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -103,7 +103,10 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
                         {l.status === 'pending' && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-800">قيد المراجعة</span>}
                         {l.status === 'hidden' && <span className="rounded-full bg-stone-100 px-2.5 py-1 text-gray-700">مخفي</span>}
                         {expired && <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">منتهٍ</span>}
-                        {l.status === 'active' && !expired && (
+                        {l.status === 'active' && l.soldAt && (
+                          <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">تم البيع</span>
+                        )}
+                        {l.status === 'active' && !l.soldAt && !expired && (
                           <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-800">
                             منشور{l.expiresAt ? ` حتى ${fmt(l.expiresAt)}` : ''}
                           </span>
@@ -123,6 +126,15 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
                         <Link href={`/listings/${l.id}/edit`} className="rounded-lg bg-stone-100 px-3 py-1.5 text-xs font-bold hover:bg-stone-200">
                           تعديل
                         </Link>
+                        {l.status === 'active' && (
+                          <form action={setSoldAction}>
+                            <input type="hidden" name="id" value={l.id} />
+                            <input type="hidden" name="sold" value={l.soldAt ? '0' : '1'} />
+                            <button type="submit" className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100">
+                              {l.soldAt ? 'أعد للبيع' : '✓ تم البيع'}
+                            </button>
+                          </form>
+                        )}
                         {l.status !== 'pending' && (<>
                         <form action={renewMyListingAction}>
                           <input type="hidden" name="id" value={l.id} />

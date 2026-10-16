@@ -32,6 +32,8 @@ export type Listing = {
   lng?: number | null;
   // سبب الرفض أو الحظر (يظهر لصاحب الإعلان)
   rejectReason?: string | null;
+  // وقت تعليم الإعلان كمباع (null = غير مباع)
+  soldAt?: Date | null;
 };
 
 export const CATEGORIES = [

@@ -83,6 +83,7 @@ type Row = {
   lat: number | null;
   lng: number | null;
   reject_reason: string | null;
+  sold_at: string | null;
 };
 
 // الحقول الاختيارية الجديدة كما تُكتب في قاعدة البيانات
@@ -137,6 +138,7 @@ function fromRow(r: Row): Listing {
     lat: r.lat ?? null,
     lng: r.lng ?? null,
     rejectReason: r.reject_reason ?? null,
+    soldAt: r.sold_at ? new Date(r.sold_at) : null,
   };
 }
 
@@ -169,6 +171,7 @@ async function searchListings(filters: ListingFilters = {}): Promise<ListingsPag
     .from('listings')
     .select('*', { count: 'exact' })
     .eq('status', 'active')
+    .is('sold_at', null)
     .gt('expires_at', nowIso);
 
   if (filters.category) query = query.eq('category', filters.category);
@@ -252,6 +255,7 @@ async function countActiveByOwner(userId: string): Promise<number> {
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
     .in('status', ['active', 'pending'])
+    .is('sold_at', null)
     .gt('expires_at', new Date().toISOString());
   if (error) throw new Error(`تعذّر عدّ إعلاناتك: ${error.message}`);
   return count ?? 0;
@@ -308,6 +312,7 @@ async function getSitemapEntries(): Promise<{ id: number; createdAt: Date }[]> {
     .from('listings')
     .select('id, created_at')
     .eq('status', 'active')
+    .is('sold_at', null)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(5000);
@@ -321,6 +326,7 @@ async function getFacets(): Promise<{ category: string; subcategory: string | nu
     .from('listings')
     .select('category, subcategory, city')
     .eq('status', 'active')
+    .is('sold_at', null)
     .gt('expires_at', new Date().toISOString())
     .limit(5000);
   if (error) throw new Error(error.message);
@@ -402,6 +408,30 @@ async function restore(id: number): Promise<void> {
   if (error) throw new Error(`تعذّر إعادة الإعلان: ${error.message}`);
 }
 
+// تعليم الإعلان كمباع (أو إعادته للبيع)
+async function setSold(id: number, sold: boolean): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from('listings')
+    .update({ sold_at: sold ? new Date().toISOString() : null })
+    .eq('id', id);
+  if (error) throw new Error(`تعذّر تحديث حالة البيع: ${error.message}`);
+}
+
+// إعلانات بأرقامها للعامة (فعّالة وغير منتهية، وتشمل المباعة لتظهر بشارتها في المفضلة)
+async function getByIds(ids: number[]): Promise<Listing[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabaseAdmin()
+    .from('listings')
+    .select('*')
+    .in('id', ids.slice(0, 200))
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString());
+  if (error) throw new Error(error.message);
+  const byId = new Map((data as Row[]).map((r) => [r.id, fromRow(r)]));
+  // نحافظ على ترتيب المفضلة المطلوب
+  return ids.map((id) => byId.get(id)).filter((l): l is Listing => Boolean(l));
+}
+
 // تجديد: يمدّد الصلاحية من الآن ويعيد الإعلان فعّالاً
 async function renew(id: number, days = LISTING_LIFETIME_DAYS): Promise<void> {
   const { error } = await supabaseAdmin()
@@ -436,6 +466,8 @@ export const listingService = {
   setFeatured,
   setStatus,
   renew,
+  setSold,
+  getByIds,
   approve,
   reject,
   restore,

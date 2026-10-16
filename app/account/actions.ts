@@ -69,3 +69,15 @@ export async function requestFeatureAction(formData: FormData): Promise<void> {
   notifyAdmin(`★ طلب تمييز جديد للإعلان #${own.listing.id}: ${days} يوماً بمبلغ $${amount}\n${adminUrl()}`);
   refresh();
 }
+
+// تعليم الإعلان كمباع أو إعادته للبيع (المحظور والمنتظر للمراجعة خارج هذا)
+export async function setSoldAction(formData: FormData): Promise<void> {
+  const own = await ownListing(formData);
+  if (!own || own.listing.status !== 'active') return;
+  const sold = String(formData.get('sold')) === '1';
+  // إعادة الإعلان للبيع تُحسب من حد الباقة من جديد
+  if (!sold && (await listingLimitError(own.user.id))) return;
+  await listingService.setSold(own.listing.id, sold);
+  revalidatePath(`/listings/${own.listing.id}`);
+  refresh();
+}

@@ -3,6 +3,7 @@ import { CATEGORIES, type Listing } from '@/lib/sample_data';
 import { formatPrice } from '@/lib/format';
 import { thumbUrl } from '@/lib/images';
 import { cardChips } from '@/lib/attributes';
+import FavButton from '@/components/listings/fav_button';
 
 export function categoryInfo(slug: string) {
   return CATEGORIES.find((c) => c.slug === slug) ?? { slug, label: slug, icon: '📦' };
@@ -13,19 +14,25 @@ export default function ListingCard({ listing }: { listing: Listing }) {
   const cover = listing.images?.[0] ?? listing.imageUrl;
   const count = listing.images?.length ?? 0;
   return (
-    <Link
-      href={`/listings/${listing.id}`}
-      className={`group relative block overflow-hidden rounded-2xl bg-white transition duration-200 hover:-translate-y-1 hover:shadow-xl ${
+    <div
+      className={`group relative overflow-hidden rounded-2xl bg-white transition duration-200 hover:-translate-y-1 hover:shadow-xl ${
         listing.isFeatured ? 'ring-2 ring-amber-400' : 'ring-1 ring-black/5'
       }`}
     >
+      <div className="absolute left-3 top-3 z-20">
+        <FavButton id={listing.id} />
+      </div>
+      {listing.soldAt && (
+        <span className="absolute inset-x-0 top-16 z-10 bg-red-600/90 py-1.5 text-center text-sm font-extrabold text-white">تم البيع</span>
+      )}
+      <Link href={`/listings/${listing.id}`} className="block">
       {listing.isFeatured && (
         <span className="absolute right-3 top-3 z-10 rounded-full bg-amber-400 px-3 py-1 text-xs font-extrabold text-emerald-950 shadow">
           ★ مميز
         </span>
       )}
       {count > 1 && (
-        <span className="absolute left-3 top-3 z-10 rounded-full bg-black/60 px-2.5 py-1 text-xs font-bold text-white">
+        <span className="absolute left-3 top-[8.4rem] z-10 rounded-full bg-black/60 px-2.5 py-1 text-xs font-bold text-white">
           📷 {count}
         </span>
       )}
@@ -54,6 +61,7 @@ export default function ListingCard({ listing }: { listing: Listing }) {
           <span>📍 {listing.city}{listing.area ? ` - ${listing.area}` : ''}</span>
         </p>
       </div>
-    </Link>
+      </Link>
+    </div>
   );
 }

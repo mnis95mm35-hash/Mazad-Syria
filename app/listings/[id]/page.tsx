@@ -15,6 +15,8 @@ import { formatPrice } from '@/lib/format';
 import { browsePath, citySlug, subLabel } from '@/lib/taxonomy';
 import { specsOf } from '@/lib/attributes';
 import ListingMap from '@/components/listings/listing_map';
+import FavButton from '@/components/listings/fav_button';
+import ShareButton from '@/components/listings/share_button';
 
 const validId = (id: string) => /^[1-9][0-9]{0,14}$/.test(id);
 
@@ -26,11 +28,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const l = await loadListing(id);
   if (!l) return { title: 'الإعلان غير موجود', robots: { index: false } };
   const desc = (l.description || `${l.title} للبيع في ${l.city}`).replace(/\s+/g, ' ').slice(0, 160);
-  const title = `${l.title} - ${l.city}`;
+  const title = `${l.soldAt ? 'تم البيع - ' : ''}${l.title} - ${l.city}`;
   return {
     title,
     description: desc,
     alternates: { canonical: `/listings/${l.id}` },
+    // الإعلان المباع لا يُفهرس
+    robots: l.soldAt ? { index: false, follow: true } : undefined,
     openGraph: {
       title,
       description: desc,
@@ -63,7 +67,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       '@type': 'Offer',
       price: listing.price,
       priceCurrency: listing.currency ?? 'USD',
-      availability: 'https://schema.org/InStock',
+      availability: listing.soldAt ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
       url: `${SITE.url}/listings/${listing.id}`,
     },
   };
@@ -80,7 +84,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         <div className="md:col-span-2 overflow-hidden rounded-3xl bg-white ring-1 ring-black/5">
           <ImageGallery images={listing.images ?? []} alt={listing.title} icon={cat.icon} />
           <div className="p-6">
-            {listing.isFeatured && (
+            {listing.soldAt && (
+              <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-800">
+                تم بيع هذا الإعلان، وقد لا يكون متاحاً بعد الآن.
+              </p>
+            )}
+            {listing.isFeatured && !listing.soldAt && (
               <span className="mb-3 inline-block rounded-full bg-amber-400 px-3 py-1 text-xs font-extrabold text-emerald-950">
                 ★ إعلان مميز
               </span>
@@ -143,7 +152,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               </Link>
             )}
           </div>
-          {listing.sellerPhone && (
+          {listing.sellerPhone && !listing.soldAt && (
             <div className="mt-4 space-y-2">
               <a
                 href={`https://wa.me/${toWhatsAppNumber(listing.sellerPhone)}?text=${encodeURIComponent(`مرحباً، أنا مهتم بإعلانك "${listing.title}" على مزاد سوريا`)}`}
@@ -161,6 +170,10 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               </a>
             </div>
           )}
+          <div className="mt-4 space-y-2">
+            <FavButton id={listing.id} variant="full" />
+            <ShareButton title={listing.title} path={`/listings/${listing.id}`} />
+          </div>
           <p className="mt-4 text-xs leading-6 text-gray-500">
             نصيحة: عاين السلعة شخصياً ولا ترسل مبالغ مقدماً قبل التأكد.
           </p>
