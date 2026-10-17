@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { supabaseAuth, authConfigured } from '@/lib/supabase_auth';
 import { isLimited, recordEvent } from '@/lib/rate_limit';
-import { CAPTCHA_ERROR, verifyTurnstile } from '@/lib/turnstile';
+import { turnstileError } from '@/lib/turnstile';
 
 export type AuthState = { error?: string; message?: string };
 
@@ -26,13 +26,18 @@ export async function registerAction(_prev: AuthState, fd: FormData): Promise<Au
   if (await isLimited('register', [{ max: 5, windowMs: 60 * 60 * 1000 }])) {
     return { error: 'محاولات كثيرة. حاول لاحقاً.' };
   }
-  if (!(await verifyTurnstile(fd))) return { error: CAPTCHA_ERROR };
+  const captcha = await turnstileError(fd);
+  if (captcha) return { error: captcha };
   await recordEvent('register');
 
   const sb = await supabaseAuth();
   const { data, error } = await sb.auth.signUp({ email, password });
   if (error) {
+    console.error('signUp failed', { status: error.status, code: error.code, message: error.message });
     if (/registered|exists/i.test(error.message)) return { error: 'هذا البريد مسجّل مسبقاً. سجّل الدخول.' };
+    if (error.status === 429 || /rate limit/i.test(error.message)) {
+      return { error: 'ضغط كبير على إرسال رسائل التأكيد حالياً. انتظر قليلاً ثم أعد المحاولة.' };
+    }
     return { error: 'تعذّر إنشاء الحساب. حاول مرة أخرى.' };
   }
   // إن كان تأكيد البريد مفعّلاً في Supabase فلن تُنشأ جلسة حتى يضغط المستخدم رابط التأكيد

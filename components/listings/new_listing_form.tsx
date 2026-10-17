@@ -26,6 +26,7 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
     {},
   );
   const [, startTransition] = useTransition();
+  const [captchaOk, setCaptchaOk] = useState(editing || !captchaSiteKey);
   const f = fieldsFor(category, sub);
 
   // نرسل النموذج يدوياً حتى لا يمسح React الحقول والصور عند ظهور خطأ تحقق
@@ -262,13 +263,13 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
         </label>
       </div>
 
-      {!editing && <Turnstile siteKey={captchaSiteKey} resetKey={state} />}
+      {!editing && <Turnstile siteKey={captchaSiteKey} resetKey={state} onReadyChange={setCaptchaOk} />}
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || !captchaOk}
         className="bg-emerald-600 text-white rounded-lg px-8 py-3 hover:bg-emerald-700 disabled:opacity-60"
       >
-        {pending ? 'جارٍ الحفظ...' : editing ? 'احفظ التعديلات' : 'انشر الإعلان'}
+        {pending ? 'جارٍ الحفظ...' : !captchaOk ? 'بانتظار التحقق...' : editing ? 'احفظ التعديلات' : 'انشر الإعلان'}
       </button>
     </form>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState } from 'react';
+import { useActionState, useState, useTransition, type FormEvent } from 'react';
 import Turnstile from '@/components/security/turnstile';
 import { loginAction, registerAction, type AuthState } from '@/app/auth/actions';
 
@@ -19,9 +19,19 @@ export default function AuthForm({
   const isLogin = mode === 'login';
   const [state, action, pending] = useActionState<AuthState, FormData>(isLogin ? loginAction : registerAction, {});
   const nextQs = next ? `?next=${encodeURIComponent(next)}` : '';
+  const needsCaptcha = !isLogin && Boolean(captchaSiteKey);
+  const [captchaOk, setCaptchaOk] = useState(!needsCaptcha);
+  const [, startTransition] = useTransition();
+
+  // نرسل النموذج يدوياً حتى لا يمسح React البريد وكلمة المرور عند ظهور خطأ
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => action(fd));
+  }
 
   return (
-    <form action={action} className="mx-auto max-w-sm space-y-4 rounded-3xl bg-white p-8 ring-1 ring-black/5">
+    <form onSubmit={onSubmit} className="mx-auto max-w-sm space-y-4 rounded-3xl bg-white p-8 ring-1 ring-black/5">
       <h1 className="text-2xl font-black">{isLogin ? 'تسجيل الدخول' : 'إنشاء حساب'}</h1>
       {state.error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{state.error}</p>
@@ -47,13 +57,13 @@ export default function AuthForm({
         />
         {!isLogin && <span className="mt-1 block text-xs text-gray-500">8 أحرف على الأقل</span>}
       </label>
-      {!isLogin && <Turnstile siteKey={captchaSiteKey} resetKey={state} />}
+      {!isLogin && <Turnstile siteKey={captchaSiteKey} resetKey={state} onReadyChange={setCaptchaOk} />}
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || !captchaOk}
         className="w-full rounded-xl bg-emerald-900 py-3 font-bold text-white hover:bg-emerald-800 disabled:opacity-60"
       >
-        {pending ? 'لحظة...' : isLogin ? 'دخول' : 'إنشاء الحساب'}
+        {pending ? 'لحظة...' : !captchaOk ? 'بانتظار التحقق...' : isLogin ? 'دخول' : 'إنشاء الحساب'}
       </button>
       <p className="text-center text-sm text-gray-600">
         {isLogin ? (

@@ -11,7 +11,7 @@ import { isTrustedOwner } from '@/lib/trust';
 import { adminUrl, notifyAdmin } from '@/lib/notify';
 import { categoryInfo } from '@/components/listings/listing_card';
 import { formatPrice } from '@/lib/format';
-import { CAPTCHA_ERROR, verifyTurnstile } from '@/lib/turnstile';
+import { turnstileError } from '@/lib/turnstile';
 import { MAX_IMAGES, filesFrom, parseListingFields, prepareImages, removeImages, uploadImages } from '@/lib/listing_form';
 
 export type FormState = { error?: string };
@@ -31,7 +31,8 @@ export async function createListingAction(_prev: FormState, formData: FormData):
   const parsed = parseListingFields(formData);
   if ('error' in parsed) return { error: parsed.error };
 
-  if (!(await verifyTurnstile(formData))) return { error: CAPTCHA_ERROR };
+  const captcha = await turnstileError(formData);
+  if (captcha) return { error: captcha };
 
   const files = filesFrom(formData);
   if (files.length > MAX_IMAGES) return { error: `الحد الأقصى ${MAX_IMAGES} صور لكل إعلان.` };
