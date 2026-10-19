@@ -46,6 +46,11 @@ export default function ImportForm() {
         </label>
       </div>
 
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" name="consent" value="yes" className="mt-1" />
+        <span>أؤكد أن أصحاب هذه الإعلانات وافقوا على نشرها في الموقع (مطلوب قبل الاستيراد)</span>
+      </label>
+
       <div className="flex flex-wrap gap-2">
         <button type="submit" value="preview" disabled={pending} className="rounded-lg bg-stone-200 px-5 py-2 text-sm font-bold hover:bg-stone-300 disabled:opacity-60">
           {pending ? 'لحظة...' : 'معاينة وفحص'}

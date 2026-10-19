@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useRef, useState, useTransition, type FormEvent } from 'react';
+import { useActionState, useEffect, useRef, useState, useTransition, type FormEvent } from 'react';
 import Turnstile from '@/components/security/turnstile';
 import { parseAdText } from '@/lib/ad_text';
 import { createListingAction, updateListingAction, type FormState } from '@/app/listings/actions';
@@ -30,8 +30,22 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
   const formRef = useRef<HTMLFormElement>(null);
   const [pasted, setPasted] = useState('');
   const [pasteMsg, setPasteMsg] = useState('');
+  // حقول تظهر بعد تغيّر القسم/المحافظة (المواصفات والمنطقة): نملؤها بعد إعادة الرسم
+  const pending2 = useRef<Record<string, string>>({});
   const [captchaOk, setCaptchaOk] = useState(editing || !captchaSiteKey);
   const f = fieldsFor(category, sub);
+
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    for (const [name, v] of Object.entries(pending2.current)) {
+      const el = form.elements.namedItem(name) as unknown;
+      if (el instanceof HTMLInputElement || el instanceof HTMLSelectElement) {
+        el.value = v;
+        delete pending2.current[name];
+      }
+    }
+  }, [category, sub, city]);
 
   // يملأ الحقول من نص الإعلان الملصوق. الحقول غير المعروفة تبقى كما هي ليكملها المستخدم
   function fillFromText() {
@@ -55,6 +69,10 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
       setSub(r.subcategory ?? '');
     }
     if (r.city) setCity(r.city);
+    pending2.current = {};
+    const extra: Record<string, string | number | null> = { area: r.area, rooms: r.rooms, sizeM2: r.sizeM2, carYear: r.carYear, carKm: r.carKm };
+    for (const [k, v] of Object.entries(extra)) if (v !== null && v !== '') pending2.current[k] = String(v);
+    if (r.sellerName) setVal('sellerName', r.sellerName);
     const found = [r.price !== null && 'السعر', r.city && 'المحافظة', r.category && 'القسم', r.phone && 'الهاتف'].filter(Boolean);
     setPasteMsg(`تم ملء الحقول${found.length ? ` (${found.join('، ')})` : ''}. راجعها وأكمل الناقص قبل النشر.`);
   }
