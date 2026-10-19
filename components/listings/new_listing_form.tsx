@@ -1,7 +1,8 @@
 'use client';
 
-import { useActionState, useState, useTransition, type FormEvent } from 'react';
+import { useActionState, useRef, useState, useTransition, type FormEvent } from 'react';
 import Turnstile from '@/components/security/turnstile';
+import { parseAdText } from '@/lib/ad_text';
 import { createListingAction, updateListingAction, type FormState } from '@/app/listings/actions';
 import { CATEGORIES, CITIES, type Listing } from '@/lib/sample_data';
 import { CURRENCIES, areasOf, subsOf } from '@/lib/taxonomy';
@@ -26,8 +27,37 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
     {},
   );
   const [, startTransition] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [pasted, setPasted] = useState('');
+  const [pasteMsg, setPasteMsg] = useState('');
   const [captchaOk, setCaptchaOk] = useState(editing || !captchaSiteKey);
   const f = fieldsFor(category, sub);
+
+  // يملأ الحقول من نص الإعلان الملصوق. الحقول غير المعروفة تبقى كما هي ليكملها المستخدم
+  function fillFromText() {
+    const r = parseAdText(pasted);
+    const form = formRef.current;
+    if (!form || !r.title) {
+      setPasteMsg('الصق نص الإعلان أولاً.');
+      return;
+    }
+    const setVal = (name: string, v: string) => {
+      const el = form.elements.namedItem(name) as unknown;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) el.value = v;
+    };
+    setVal('title', r.title);
+    setVal('description', r.description);
+    if (r.price !== null) setVal('price', String(r.price));
+    if (r.currency) setVal('currency', r.currency);
+    if (r.phone) setVal('sellerPhone', r.phone);
+    if (r.category) {
+      setCategory(r.category);
+      setSub(r.subcategory ?? '');
+    }
+    if (r.city) setCity(r.city);
+    const found = [r.price !== null && 'السعر', r.city && 'المحافظة', r.category && 'القسم', r.phone && 'الهاتف'].filter(Boolean);
+    setPasteMsg(`تم ملء الحقول${found.length ? ` (${found.join('، ')})` : ''}. راجعها وأكمل الناقص قبل النشر.`);
+  }
 
   // نرسل النموذج يدوياً حتى لا يمسح React الحقول والصور عند ظهور خطأ تحقق
   function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -37,7 +67,7 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
   }
 
   return (
-    <form onSubmit={onSubmit} className="relative bg-white border border-gray-200 rounded-xl p-6 space-y-4 max-w-2xl">
+    <form ref={formRef} onSubmit={onSubmit} className="relative bg-white border border-gray-200 rounded-xl p-6 space-y-4 max-w-2xl">
       {state.error && (
         <p className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">{state.error}</p>
       )}
@@ -50,6 +80,23 @@ export default function ListingForm({ listing, captchaSiteKey = null }: { listin
           <input name="website" type="text" tabIndex={-1} autoComplete="off" />
         </label>
       </div>
+
+      {!editing && (
+        <details className="rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-100">
+          <summary className="cursor-pointer text-sm font-bold text-emerald-900">⚡ عندك نص جاهز؟ الصقه لنملأ الحقول عنك</summary>
+          <textarea
+            value={pasted}
+            onChange={(e) => setPasted(e.target.value)}
+            rows={5}
+            placeholder="الصق نص إعلانك هنا (من واتساب أو فيسبوك أو أي مكان كتبته فيه)..."
+            className={`${input} mt-3`}
+          />
+          <button type="button" onClick={fillFromText} className="mt-2 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700">
+            املأ الحقول تلقائياً
+          </button>
+          {pasteMsg && <p className="mt-2 text-sm text-emerald-900">{pasteMsg}</p>}
+        </details>
+      )}
 
       <label className="block">
         <span className="block text-sm font-medium mb-1">عنوان الإعلان</span>

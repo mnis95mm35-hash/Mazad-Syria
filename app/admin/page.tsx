@@ -114,11 +114,16 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
     <MainLayout>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-black">لوحة الإدارة</h1>
+        <div className="flex gap-2">
+        <Link href="/admin/import" className="rounded-xl bg-emerald-800 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-700">
+          📥 استيراد إعلانات
+        </Link>
         <form action={logoutAction}>
           <button type="submit" className="rounded-xl bg-stone-200 px-5 py-2 text-sm font-bold hover:bg-stone-300">
             تسجيل الخروج
           </button>
         </form>
+        </div>
       </div>
 
       {!notifyConfigured() && (
