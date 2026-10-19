@@ -36,7 +36,7 @@ async function shrink(file: File): Promise<File> {
 
 // اختيار الصور: التقاط مباشر بالكاميرا أو من الملفات، مع معاينة وحذف.
 // الصور المختارة تُوضع في حقل ملفات مخفي باسم images ليرسلها النموذج كالمعتاد.
-export default function ImagePicker({ max }: { max: number }) {
+export default function ImagePicker({ max, name = 'images' }: { max: number; name?: string }) {
   const [items, setItems] = useState<Item[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
@@ -97,7 +97,7 @@ export default function ImagePicker({ max }: { max: number }) {
 
   return (
     <div>
-      <input ref={hidden} type="file" name="images" multiple className="hidden" tabIndex={-1} aria-hidden="true" />
+      <input ref={hidden} type="file" name={name} multiple className="hidden" tabIndex={-1} aria-hidden="true" />
       <input
         ref={camera}
         type="file"

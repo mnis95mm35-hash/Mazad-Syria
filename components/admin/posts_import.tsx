@@ -5,6 +5,10 @@ import { importRowsAction, type ImportState } from '@/app/admin/import/actions';
 import { parseAdText, splitPosts } from '@/lib/ad_text';
 import { CATEGORIES, CITIES } from '@/lib/sample_data';
 import { areasOf, subsOf } from '@/lib/taxonomy';
+import ImagePicker from '@/components/listings/image_picker';
+
+const MAX_IMAGES = 5;
+const MAX_TOTAL_BYTES = 30 * 1024 * 1024;
 
 const input = 'w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm';
 
@@ -34,6 +38,7 @@ export default function PostsImport() {
   const [text, setText] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [note, setNote] = useState('');
+  const [batch, setBatch] = useState(0);
 
   function analyze() {
     const posts = splitPosts(text).slice(0, 100);
@@ -42,6 +47,7 @@ export default function PostsImport() {
       setRows([]);
       return;
     }
+    setBatch((b) => b + 1);
     setRows(
       posts.map((p) => {
         const r = parseAdText(p);
@@ -73,6 +79,20 @@ export default function PostsImport() {
     const fd = new FormData(form);
     fd.set('mode', mode);
     const chosen = rows.map((r, i) => ({ ...r, _line: i + 1 })).filter((r) => r.on);
+    // لا نرسل صور الإعلانات غير المحددة، ونحمي من دفعة ثقيلة جداً
+    let total = 0;
+    rows.forEach((r, i) => {
+      const key = `images_${i + 1}`;
+      if (!r.on) {
+        fd.delete(key);
+        return;
+      }
+      for (const f of fd.getAll(key)) if (f instanceof File) total += f.size;
+    });
+    if (total > MAX_TOTAL_BYTES) {
+      setNote('حجم الصور كبير على دفعة واحدة. انشر على دفعات (مثلاً 10 إعلانات في المرة).');
+      return;
+    }
     fd.set('rows', JSON.stringify(chosen));
     startTransition(() => action(fd));
   }
@@ -148,6 +168,10 @@ export default function PostsImport() {
                   <input value={r.sellerPhone} onChange={(e) => patch(i, { sellerPhone: e.target.value })} dir="ltr" placeholder="الهاتف" aria-label="الهاتف" className={input} />
                   <input value={r.rooms} onChange={(e) => patch(i, { rooms: e.target.value })} inputMode="numeric" placeholder="الغرف" aria-label="الغرف" className={input} />
                   <input value={r.sizeM2} onChange={(e) => patch(i, { sizeM2: e.target.value })} inputMode="numeric" placeholder="المساحة م²" aria-label="المساحة" className={input} />
+                </div>
+                <div className="pt-1">
+                  <span className="mb-1 block text-xs font-bold text-gray-600">صور الإعلان (اختياري)</span>
+                  <ImagePicker key={`${batch}-${i}`} name={`images_${i + 1}`} max={MAX_IMAGES} />
                 </div>
                 <details>
                   <summary className="cursor-pointer text-xs text-gray-500">الوصف</summary>

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { listingService } from '@/lib/listing_service';
-import { parseListingFields } from '@/lib/listing_form';
+import { MAX_IMAGES, parseListingFields, prepareImages, removeImages, uploadImages } from '@/lib/listing_form';
 import { isAdmin } from '@/lib/admin_auth';
 import { supabaseAdmin } from '@/lib/supabase';
 import { mapHeader, normCategory, normCity, normCurrency, parseTable } from '@/lib/bulk_import';
@@ -32,7 +32,7 @@ async function findUserId(email: string): Promise<string | null> {
   return null;
 }
 
-type Opts = { mode: 'preview' | 'import'; defaultName: string; defaultPhone: string; ownerEmail: string; consent: boolean };
+type Opts = { mode: 'preview' | 'import'; defaultName: string; defaultPhone: string; ownerEmail: string; consent: boolean; src?: FormData };
 
 // قلب الاستيراد المشترك بين الجدول والمنشورات: كل سجل يمر على نفس تحقق نموذج الإعلان العادي
 async function runImport(records: { line: number; rec: Record<string, string> }[], o: Opts): Promise<ImportState> {
@@ -75,10 +75,31 @@ async function runImport(records: { line: number; rec: Record<string, string> }[
     }
     seen.add(key);
 
+    // صور الإعلان (اختيارية): حقل images_<رقم الإعلان> في النموذج
+    const files = o.src ? o.src.getAll(`images_${line}`).filter((x): x is File => x instanceof File && x.size > 0) : [];
+    if (files.length > MAX_IMAGES) {
+      failed.push({ row: line, msg: `الحد الأقصى ${MAX_IMAGES} صور لكل إعلان.` });
+      continue;
+    }
+    const prepared = files.length ? await prepareImages(files) : { buffers: [] as Buffer[], thumbs: [] as Buffer[] };
+    if ('error' in prepared) {
+      failed.push({ row: line, msg: prepared.error });
+      continue;
+    }
+
     if (o.mode === 'import') {
+      let names: string[] = [];
       try {
-        await listingService.createListing({ ...f, images: [], userId: ownerId, status: 'active' });
+        let urls: string[] = [];
+        if (prepared.buffers.length) {
+          const up = await uploadImages(prepared.buffers, prepared.thumbs);
+          if ('error' in up) throw new Error(up.error);
+          urls = up.urls;
+          names = up.names;
+        }
+        await listingService.createListing({ ...f, images: urls, userId: ownerId, status: 'active' });
       } catch (e) {
+        await removeImages(names);
         failed.push({ row: line, msg: e instanceof Error ? e.message : 'تعذّر الحفظ.' });
         continue;
       }
@@ -101,6 +122,7 @@ function optsFrom(fd: FormData): Opts {
     defaultPhone: String(fd.get('defaultPhone') ?? '').trim(),
     ownerEmail: String(fd.get('ownerEmail') ?? '').trim(),
     consent: String(fd.get('consent') ?? '') === 'yes',
+    src: fd,
   };
 }
 
