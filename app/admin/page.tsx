@@ -118,6 +118,9 @@ ADMIN_SESSION_SECRET=long-random-string`}</pre>
         <Link href="/admin/import" className="rounded-xl bg-emerald-800 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-700">
           📥 استيراد إعلانات
         </Link>
+        <Link href="/admin/drafts" className="rounded-xl bg-emerald-100 px-5 py-2 text-sm font-bold text-emerald-900 hover:bg-emerald-200">
+          🗂️ المسودات
+        </Link>
         <form action={logoutAction}>
           <button type="submit" className="rounded-xl bg-stone-200 px-5 py-2 text-sm font-bold hover:bg-stone-300">
             تسجيل الخروج
