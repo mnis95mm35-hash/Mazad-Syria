@@ -3,6 +3,8 @@ import { Cairo } from 'next/font/google';
 import './globals.css';
 import { SITE } from '@/lib/site_config';
 import MotionFX from '@/components/motion/motion_fx';
+import QuickPost from '@/components/listings/quick_post';
+import { turnstileSiteKey } from '@/lib/turnstile';
 
 const cairo = Cairo({ subsets: ['arabic', 'latin'], display: 'swap' });
 
@@ -24,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div aria-hidden="true" className="m-progress" />
         <MotionFX />
         {children}
+        <QuickPost captchaSiteKey={turnstileSiteKey()} />
       </body>
     </html>
   );

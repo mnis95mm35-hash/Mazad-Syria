@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { listingService } from '@/lib/listing_service';
-import { parseListingFields } from '@/lib/listing_form';
+import { parseListingFields, type ListingFields } from '@/lib/listing_form';
 import { normCategory, normCity, normCurrency } from '@/lib/bulk_import';
 import { parseAdText, splitPosts } from '@/lib/ad_text';
 
@@ -66,12 +66,20 @@ function toDraft(r: Row): Draft {
   };
 }
 
-export type AddResult = { added: number; duplicates: number; skipped: number };
+export type AddedItem = { id: number; title: string; price: number | null; city: string | null; phone: string | null };
+export type AddResult = { added: number; duplicates: number; skipped: number; items: AddedItem[] };
+export type AddOpts = {
+  sourceId?: number | null;
+  defaultPhone?: string;
+  defaultName?: string;
+  // مسودة أرسلها صاحبها بنفسه (مثلاً عبر بوت تلغرام): الموافقة موثّقة والحالة «طالب بها صاحبها»
+  intake?: { note: string };
+};
 
 // نص فيه منشور أو أكثر → مسودات. المحلل الحالي (ad_text) يملأ الحقول، والإدارة تراجعها.
-async function addFromText(text: string, opts: { sourceId?: number | null; defaultPhone?: string; defaultName?: string }): Promise<AddResult> {
+async function addFromText(text: string, opts: AddOpts): Promise<AddResult> {
   const posts = splitPosts(text).slice(0, MAX_BATCH);
-  const res: AddResult = { added: 0, duplicates: 0, skipped: 0 };
+  const res: AddResult = { added: 0, duplicates: 0, skipped: 0, items: [] };
   const db = supabaseAdmin();
   for (const raw of posts) {
     const p = parseAdText(raw);
@@ -89,7 +97,7 @@ async function addFromText(text: string, opts: { sourceId?: number | null; defau
         continue;
       }
     }
-    const { error } = await db.from('ad_drafts').insert({
+    const { data: ins, error } = await db.from('ad_drafts').insert({
       source_id: opts.sourceId ?? null,
       raw_text: raw.slice(0, 5000),
       title: p.title.slice(0, 200),
@@ -104,11 +112,15 @@ async function addFromText(text: string, opts: { sourceId?: number | null; defau
       seller_phone: phone,
       extras: { rooms: p.rooms, sizeM2: p.sizeM2, carYear: p.carYear, carKm: p.carKm },
       dedupe_key: key,
-    });
+      ...(opts.intake ? { status: 'claimed', consent_at: new Date().toISOString(), consent_note: opts.intake.note.slice(0, 300) } : {}),
+    }).select('id').single();
     if (error) {
       if (error.code === '23505') res.duplicates++;
       else throw new Error(`تعذّر حفظ المسودة: ${error.message}`);
-    } else res.added++;
+    } else {
+      res.added++;
+      res.items.push({ id: ins.id as number, title: p.title, price: p.price, city: p.city, phone });
+    }
   }
   return res;
 }
@@ -170,7 +182,8 @@ async function publish(id: number, consentNote: string): Promise<{ error: string
   const d = await get(id);
   if (!d) return { error: 'المسودة غير موجودة.' };
   if (d.status === 'published') return { error: 'نُشرت سابقاً.' };
-  if (!consentNote.trim()) return { error: 'اكتب كيف وصلتك موافقة صاحب الإعلان (مثلاً: واتساب بتاريخ كذا).' };
+  const note = consentNote.trim() || d.consentNote || '';
+  if (!note) return { error: 'اكتب كيف وصلتك موافقة صاحب الإعلان (مثلاً: واتساب بتاريخ كذا).' };
 
   const fd = new FormData();
   const set = (k: string, v: unknown) => fd.set(k, v === null || v === undefined ? '' : String(v));
@@ -193,7 +206,7 @@ async function publish(id: number, consentNote: string): Promise<{ error: string
   const listingId = await listingService.createListing({ ...parsed.fields, images: d.images, userId: null, status: 'active' });
   const { error } = await supabaseAdmin()
     .from('ad_drafts')
-    .update({ status: 'published', listing_id: listingId, consent_at: new Date().toISOString(), consent_note: consentNote.trim().slice(0, 300) })
+    .update({ status: 'published', listing_id: listingId, consent_at: (d.consentAt ?? new Date()).toISOString(), consent_note: note.slice(0, 300) })
     .eq('id', id);
   if (error) throw new Error(error.message);
   return { listingId };
@@ -211,4 +224,70 @@ async function purgeExpired(): Promise<number> {
   return data?.length ?? 0;
 }
 
-export const drafts = { addFromText, list, get, update, setStatus, remove, publish, purgeExpired };
+// مسودة من حقول تم التحقق منها (نموذج الموقع العائم). الموافقة موثّقة بإقرار الزائر.
+async function addValidated(f: ListingFields, images: string[], note: string): Promise<{ id: number } | { duplicate: true }> {
+  const { data, error } = await supabaseAdmin()
+    .from('ad_drafts')
+    .insert({
+      raw_text: [f.title, f.description ?? ''].join('\n').slice(0, 5000),
+      title: f.title,
+      description: f.description ?? '',
+      price: f.price,
+      currency: f.currency,
+      category: f.category,
+      subcategory: f.subcategory,
+      city: f.city,
+      area: f.area,
+      seller_name: f.sellerName,
+      seller_phone: f.sellerPhone,
+      extras: { rooms: f.rooms, sizeM2: f.sizeM2, carYear: f.carYear, carKm: f.carKm },
+      images,
+      dedupe_key: dedupeKey(f.sellerPhone, f.title),
+      status: 'claimed',
+      consent_at: new Date().toISOString(),
+      consent_note: note.slice(0, 300),
+    })
+    .select('id')
+    .single();
+  if (error) {
+    if (error.code === '23505') return { duplicate: true };
+    throw new Error(`تعذّر حفظ المسودة: ${error.message}`);
+  }
+  return { id: data.id as number };
+}
+
+// مسودات محادثة تلغرام معيّنة (الوسم chat:<id> محفوظ في ملاحظة الموافقة)
+const chatTag = (chatId: number) => `(chat:${Math.trunc(chatId)})`;
+
+async function latestForChat(chatId: number, withinMs: number): Promise<Draft | null> {
+  const since = new Date(Date.now() - withinMs).toISOString();
+  const { data, error } = await supabaseAdmin()
+    .from('ad_drafts')
+    .select('*')
+    .like('consent_note', `%${chatTag(chatId)}%`)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return data && data[0] ? toDraft(data[0]) : null;
+}
+
+async function countForChatToday(chatId: number): Promise<number> {
+  const since = new Date(Date.now() - 86_400_000).toISOString();
+  const { count, error } = await supabaseAdmin()
+    .from('ad_drafts')
+    .select('id', { count: 'exact', head: true })
+    .like('consent_note', `%${chatTag(chatId)}%`)
+    .gte('created_at', since);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+async function appendImages(id: number, urls: string[]): Promise<void> {
+  const d = await get(id);
+  if (!d) return;
+  const { error } = await supabaseAdmin().from('ad_drafts').update({ images: [...d.images, ...urls] }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export const drafts = { addValidated, chatTag, latestForChat, countForChatToday, appendImages, addFromText, list, get, update, setStatus, remove, publish, purgeExpired };

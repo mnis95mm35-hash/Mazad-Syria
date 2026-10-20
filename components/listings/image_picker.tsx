@@ -8,7 +8,7 @@ type Item = { id: string; file: File; url: string };
 
 // يصغّر صور الهاتف الكبيرة قبل الرفع (1600px) فتنجح ضمن حد 3 ميغابايت وترفع أسرع.
 // عند أي فشل نعيد الملف الأصلي كما هو.
-async function shrink(file: File): Promise<File> {
+export async function shrink(file: File): Promise<File> {
   try {
     if (!file.type.startsWith('image/')) return file;
     const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });

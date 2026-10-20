@@ -43,6 +43,9 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <Link href="/listings/new" className="rounded-xl bg-amber-400 px-5 py-2 text-sm font-bold text-emerald-950 hover:bg-amber-300">
             + إعلان جديد
           </Link>
+          <Link href="/account/import" className="rounded-xl bg-emerald-100 px-5 py-2 text-sm font-bold text-emerald-900 hover:bg-emerald-200">
+            📥 من فيسبوك
+          </Link>
           <form action={logoutAction}>
             <button type="submit" className="rounded-xl bg-stone-200 px-5 py-2 text-sm font-bold hover:bg-stone-300">
               تسجيل الخروج

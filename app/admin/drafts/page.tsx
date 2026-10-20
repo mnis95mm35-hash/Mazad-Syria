@@ -5,6 +5,7 @@ import MainLayout from '@/components/layout/main_layout';
 import { isAdmin } from '@/lib/admin_auth';
 import { drafts, type Draft } from '@/lib/drafts_service';
 import { recentJobRuns } from '@/lib/job_log';
+import { toWhatsAppNumber } from '@/lib/phone';
 import { CATEGORIES, CITIES } from '@/lib/sample_data';
 import {
   addDraftsAction,
@@ -67,6 +68,14 @@ function DraftCard({ d }: { d: Draft }) {
           <summary className="cursor-pointer text-xs text-gray-500">الوصف والنص الأصلي</summary>
           <p className="mt-2 whitespace-pre-line text-sm leading-7">{d.description}</p>
         </details>
+        {d.images.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {d.images.map((u) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={u} src={u} alt="" className="h-16 w-16 rounded-lg object-cover ring-1 ring-black/10" />
+            ))}
+          </div>
+        )}
         {open && <button className="rounded-lg bg-stone-200 px-4 py-1.5 text-sm font-bold hover:bg-stone-300">حفظ التعديلات</button>}
       </form>
 
@@ -74,7 +83,7 @@ function DraftCard({ d }: { d: Draft }) {
         <div className="space-y-3 border-t border-black/5 pt-3">
           <form action={publishDraftAction} className="space-y-2">
             <input type="hidden" name="id" value={d.id} />
-            <input name="consentNote" placeholder="كيف وافق صاحبها؟ مثال: واتساب 21/10 من الرقم نفسه" className={input} />
+            <input name="consentNote" defaultValue={d.consentNote ?? ''} placeholder="كيف وافق صاحبها؟ مثال: واتساب 21/10 من الرقم نفسه" className={input} />
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" name="consent" value="yes" className="mt-1" />
               <span>أؤكد أن صاحب الإعلان وافق على نشره في الموقع</span>
@@ -82,6 +91,16 @@ function DraftCard({ d }: { d: Draft }) {
             <button className="rounded-lg bg-emerald-800 px-4 py-1.5 text-sm font-bold text-white hover:bg-emerald-700">نشر الإعلان</button>
           </form>
           <div className="flex flex-wrap gap-2">
+            {d.sellerPhone && (
+              <a
+                href={`https://wa.me/${toWhatsAppNumber(d.sellerPhone)}?text=${encodeURIComponent(`مرحباً، وصلنا إعلانك «${d.title}» على مزاد سوريا. هل تؤكد نشره؟`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg bg-green-100 px-3 py-1 text-xs font-bold text-green-900 hover:bg-green-200"
+              >
+                راسله على واتساب للتأكيد
+              </a>
+            )}
             {d.status === 'draft' && (
               <form action={setDraftStatusAction}>
                 <input type="hidden" name="id" value={d.id} />
