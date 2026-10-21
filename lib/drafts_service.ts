@@ -72,13 +72,15 @@ export type AddOpts = {
   sourceId?: number | null;
   defaultPhone?: string;
   defaultName?: string;
+  // النص كله إعلان واحد (لا يُقسَّم عند الأسطر الفارغة أو الترقيم)
+  single?: boolean;
   // مسودة أرسلها صاحبها بنفسه (مثلاً عبر بوت تلغرام): الموافقة موثّقة والحالة «طالب بها صاحبها»
   intake?: { note: string };
 };
 
 // نص فيه منشور أو أكثر → مسودات. المحلل الحالي (ad_text) يملأ الحقول، والإدارة تراجعها.
 async function addFromText(text: string, opts: AddOpts): Promise<AddResult> {
-  const posts = splitPosts(text).slice(0, MAX_BATCH);
+  const posts = opts.single ? [text.trim()].filter(Boolean) : splitPosts(text).slice(0, MAX_BATCH);
   const res: AddResult = { added: 0, duplicates: 0, skipped: 0, items: [] };
   const db = supabaseAdmin();
   for (const raw of posts) {

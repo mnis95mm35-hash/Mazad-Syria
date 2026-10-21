@@ -163,6 +163,10 @@ export default async function DraftsPage({ searchParams }: { searchParams: Promi
             <input name="defaultName" placeholder="اسم افتراضي (اختياري)" className={input} />
             <input name="defaultPhone" dir="ltr" placeholder="هاتف افتراضي (اختياري)" className={input} />
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="single" value="yes" />
+            هذا النص إعلان واحد (لا تقسّمه إلى عدة إعلانات)
+          </label>
           <button className="rounded-lg bg-emerald-800 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-700">أضف كمسودات</button>
         </form>
       </section>

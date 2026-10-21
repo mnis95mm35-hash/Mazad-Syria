@@ -22,6 +22,7 @@ export async function addDraftsAction(fd: FormData) {
   const r = await drafts.addFromText(text, {
     defaultPhone: String(fd.get('defaultPhone') ?? '').trim(),
     defaultName: String(fd.get('defaultName') ?? '').trim(),
+    single: String(fd.get('single') ?? '') === 'yes',
   });
   revalidatePath('/admin/drafts');
   back(`أُضيف ${r.added} مسودة، مكرر ${r.duplicates}، متجاوَز ${r.skipped}.`);
