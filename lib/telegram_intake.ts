@@ -93,6 +93,15 @@ export async function handleMessage(m: TgMessage): Promise<void> {
 
   if (!fileId && !body) return tgSend(chatId, 'أرسل نص الإعلان أو صوره. اكتب /help للمثال.');
 
+  // تتمة رسالة طويلة قسّمها تلغرام (الجزء السابق ≥ 3000 حرف وصل قبل أقل من دقيقة): تُلحق بنفس المسودة
+  if (text && !m.caption) {
+    const prev = await drafts.latestForChat(chatId, 60_000);
+    if (prev && prev.rawText.length >= 3000 && prev.images.length === 0 && prev.status !== 'published') {
+      await drafts.appendText(prev.id, text);
+      return;
+    }
+  }
+
   // نص (أو وصف صورة) → إعلان جديد
   let target = null as Awaited<ReturnType<typeof drafts.latestForChat>>;
   if (body && body.length >= 15) {

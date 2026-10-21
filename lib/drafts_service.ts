@@ -285,6 +285,33 @@ async function countForChatToday(chatId: number): Promise<number> {
   return count ?? 0;
 }
 
+// تلغرام يقسّم الرسالة الأطول من نحو 4096 حرفاً إلى عدة رسائل. نلحق البقية بنفس المسودة ونعيد التحليل.
+async function appendText(id: number, extra: string): Promise<void> {
+  const d = await get(id);
+  if (!d) return;
+  const raw = `${d.rawText}\n${extra}`.slice(0, 9000);
+  const p = parseAdText(raw);
+  const phone = p.phone ?? d.sellerPhone;
+  const { error } = await supabaseAdmin()
+    .from('ad_drafts')
+    .update({
+      raw_text: raw,
+      title: (p.title || d.title).slice(0, 200),
+      description: p.description.slice(0, 5000),
+      price: p.price ?? d.price,
+      currency: p.currency ?? d.currency,
+      category: p.category ?? d.category,
+      subcategory: p.subcategory ?? d.subcategory,
+      city: p.city ?? d.city,
+      area: p.area ?? d.area,
+      seller_name: p.sellerName ?? d.sellerName,
+      seller_phone: phone,
+      extras: { rooms: p.rooms ?? d.extras.rooms ?? null, sizeM2: p.sizeM2 ?? d.extras.sizeM2 ?? null, carYear: p.carYear ?? d.extras.carYear ?? null, carKm: p.carKm ?? d.extras.carKm ?? null },
+    })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
 async function appendImages(id: number, urls: string[]): Promise<void> {
   const d = await get(id);
   if (!d) return;
@@ -292,4 +319,4 @@ async function appendImages(id: number, urls: string[]): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export const drafts = { addValidated, chatTag, latestForChat, countForChatToday, appendImages, addFromText, list, get, update, setStatus, remove, publish, purgeExpired };
+export const drafts = { addValidated, appendText, chatTag, latestForChat, countForChatToday, appendImages, addFromText, list, get, update, setStatus, remove, publish, purgeExpired };
